@@ -1,0 +1,8 @@
+{
+  "svg": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\human-control\\logo.svg",
+  "source": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\human-control\\source.png",
+  "overlay": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\human-control\\outputs\\fit_iterations\\02_local_semantic_overlay.png",
+  "iou": 0.9728,
+  "src_only_px": 29446,
+  "render_only_px": 12771
+}

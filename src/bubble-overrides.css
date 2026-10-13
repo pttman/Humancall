@@ -1,0 +1,48 @@
+.bubble-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: auto;
+  min-height: 194px;
+  overflow: hidden;
+}
+
+.bubble-head {
+  padding-right: 28px;
+}
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 11px;
+  z-index: 2;
+  margin-left: 0;
+  line-height: 1;
+}
+
+.close:hover {
+  color: var(--text);
+}
+
+.bubble-body {
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 5px;
+  scrollbar-width: thin;
+}
+
+.quick-actions,
+.bubble-shell form,
+.open-main {
+  flex: 0 0 auto;
+}
+
+.quick-actions {
+  flex-wrap: wrap;
+}
+
+.open-main {
+  min-height: 16px;
+}

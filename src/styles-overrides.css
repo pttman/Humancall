@@ -1,0 +1,339 @@
+.prompt-setting textarea {
+  min-height: 128px;
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.quick-prompts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.quick-prompts button {
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--panel-2) 70%, transparent);
+  font-size: 10px;
+}
+
+.quick-prompts button:hover {
+  color: var(--text);
+  border-color: var(--accent, var(--green));
+}
+
+.prompt-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: -1px;
+}
+
+.prompt-actions span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.35;
+  text-align: right;
+}
+
+.prompt-hint {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+.modal-card {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+@media (max-height: 700px) {
+  .modal {
+    align-items: start;
+    padding: 16px 0;
+    overflow-y: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .modal-card {
+    width: calc(100vw - 24px);
+    padding: 16px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-actions button {
+    flex: 1 1 140px;
+  }
+}
+
+.reminder-item {
+  padding: 11px 9px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  gap: 9px;
+  align-items: start;
+}
+
+.reminder-item:first-child {
+  border-top: 0;
+}
+
+.reminder-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--orange);
+  box-shadow: 0 0 0 4px rgba(243, 179, 94, .12);
+}
+
+.reminder-title {
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.reminder-delete {
+  padding: 0 3px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.reminder-delete:hover {
+  color: var(--red);
+}
+
+.entry-modal-card {
+  width: min(560px, calc(100vw - 24px));
+}
+
+.entry-modal-card textarea {
+  min-height: 82px;
+  resize: vertical;
+}
+
+.task-content {
+  min-width: 0;
+}
+
+.task-item {
+  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+}
+
+.task-toolbar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 104px;
+  gap: 7px;
+  padding: 0 11px 8px;
+}
+
+.task-toolbar input,
+.task-toolbar select {
+  min-width: 0;
+  padding: 7px 8px;
+  border-radius: 8px;
+  font-size: 10px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 9px;
+  margin-top: 3px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.settings-section-title {
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.settings-section-copy,
+.support-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.data-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.data-actions button {
+  flex: 1 1 140px;
+}
+
+.support-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--orange) 32%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--orange) 8%, transparent);
+}
+
+.support-card strong {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.task-status-select,
+.reminder-control {
+  min-width: 72px;
+  max-width: 96px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel-strong);
+  color: var(--text);
+  font-size: 10px;
+}
+
+.task-delete,
+.reminder-delete {
+  min-width: 26px;
+  padding: 5px 4px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.task-delete:hover,
+.reminder-delete:hover {
+  color: var(--red);
+  border-color: color-mix(in srgb, var(--red) 45%, transparent);
+  background: color-mix(in srgb, var(--red) 10%, transparent);
+}
+
+.task-status-select:focus,
+.reminder-control:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 38%, transparent);
+  outline-offset: 1px;
+}
+
+.reminder-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.reminder-item.is-disabled .reminder-dot {
+  background: var(--muted);
+  box-shadow: none;
+}
+
+.reminder-item.is-disabled .reminder-title {
+  text-decoration: line-through;
+}
+
+@media (max-height: 820px) {
+  .app-shell {
+    padding-top: 12px;
+    padding-bottom: 16px;
+  }
+
+  .topbar {
+    height: 46px;
+    margin-bottom: 12px;
+  }
+
+  .command-card {
+    padding: 16px 18px;
+  }
+
+  .current-task {
+    margin: 8px 0 6px;
+    font-size: 22px;
+  }
+
+  .command-actions {
+    margin-top: 12px;
+  }
+
+  .chat-card {
+    min-height: 370px;
+  }
+
+  .chat-messages {
+    min-height: 110px;
+    max-height: calc(100vh - 500px);
+  }
+
+  .chat-form {
+    padding: 10px;
+  }
+}
+
+@media (max-width: 560px) {
+  .app-shell {
+    min-width: 0;
+  }
+
+  .layout {
+    gap: 12px;
+  }
+
+  .chat-card {
+    min-height: 360px;
+  }
+
+  .chat-messages {
+    min-height: 150px;
+    max-height: none;
+  }
+
+  .chat-form textarea {
+    min-height: 58px;
+  }
+
+  .task-item {
+    grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  }
+
+  .task-status-select,
+  .reminder-control {
+    min-width: 66px;
+    max-width: 82px;
+  }
+
+  .task-delete,
+  .reminder-delete {
+    min-width: 24px;
+  }
+
+  .task-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .support-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

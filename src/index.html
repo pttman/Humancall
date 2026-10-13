@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'none';" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>人类调度</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles-overrides.css" />
+    <link rel="stylesheet" href="themes.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div class="brand"><span class="brand-mark">H</span><div><strong>人类调度</strong><small>AI 工作主管</small></div></div>
+        <div class="top-actions"><span id="connectionBadge" class="badge muted">本地模式</span><button id="settingsButton" class="icon-button" title="设置">⚙</button></div>
+      </header>
+      <main class="layout">
+        <section class="main-column">
+          <div class="command-card">
+            <div class="eyebrow">当前调度</div>
+            <div id="currentTaskTitle" class="current-task">还没有任务。把工作交出来。</div>
+            <div id="currentTaskMeta" class="task-meta">等待你的第一条指令</div>
+            <div class="command-actions"><button id="completeButton" class="primary small">完成</button><button id="blockedButton" class="secondary small">阻塞</button><button id="postponeButton" class="secondary small">延期</button><button id="nextButton" class="ghost small">安排下一项</button></div>
+          </div>
+          <div class="chat-card">
+            <div class="section-heading"><div><h2>向主管汇报</h2><p>告诉我你要做什么、做完了什么，或者直接问下一项。</p><div class="quick-prompts"><button type="button" data-quick-prompt="收集我今天要做的工作">收集今日工作</button><button type="button" data-quick-prompt="我现在做什么？">我现在做什么</button><button type="button" data-quick-prompt="10分钟后提醒我休息一下">安排休息提醒</button></div></div><button id="clearChatButton" class="text-button">清空对话</button></div>
+            <div id="chatMessages" class="chat-messages"></div>
+            <form id="chatForm" class="chat-form"><textarea id="chatInput" rows="2" placeholder="例如：今天要完成官网首页、给客户发报价，下午五点前完成"></textarea><button class="send-button" type="submit">发送 <span>Ctrl ↵</span></button></form>
+          </div>
+        </section>
+        <aside class="side-column">
+          <div class="panel"><div class="section-heading compact"><div class="heading-with-count"><h2>今日调度</h2><span id="taskCount" class="count">0</span></div><button id="clearTasksButton" class="danger-link" title="清空全部任务，需要二次确认">清空任务</button></div><div class="task-toolbar"><input id="taskSearchInput" type="search" placeholder="搜索任务" aria-label="搜索任务" /><select id="taskFilterInput" aria-label="筛选任务"><option value="all">全部状态</option><option value="active">执行中</option><option value="planned">待执行</option><option value="blocked">阻塞</option><option value="waiting">等待中</option><option value="completed">已完成</option><option value="cancelled">已取消</option></select></div><div id="taskList" class="task-list"></div><button id="addTaskButton" class="add-task">＋ 手动添加任务</button></div>
+          <div class="panel reminder-panel"><div class="section-heading compact"><div class="heading-with-count"><h2>提醒</h2><span id="reminderCount" class="count">0</span></div><span class="tone-label">固定时间也能管</span></div><div id="reminderList" class="task-list reminder-list"></div><button id="addReminderButton" class="add-task">＋ 新增提醒</button></div>
+          <div class="panel stats-panel"><div class="section-heading compact"><h2>监督状态</h2><span id="toneLabel" class="tone-label">老板模式</span></div><div class="stat-row"><span>今日完成</span><strong id="doneCount">0</strong></div><div class="stat-row"><span>待处理</span><strong id="pendingCount">0</strong></div><div class="stat-row"><span>逾期</span><strong id="overdueCount">0</strong></div><div id="lastCheckin" class="last-checkin">尚无监督记录</div></div>
+        </aside>
+      </main>
+    </div>
+    <div id="settingsModal" class="modal hidden"><div class="modal-backdrop"></div><div class="modal-card"><div class="modal-header"><div><h2>调度设置</h2><p>API Key 只保存在本机应用数据目录，不会随备份导出。</p></div><button id="closeSettingsButton" class="icon-button">×</button></div><form id="settingsForm" class="settings-form"><label>API Base URL<input id="baseUrlInput" placeholder="https://api.openai.com/v1" /></label><label>API Key<input id="apiKeyInput" type="password" placeholder="sk-..." /></label><label>模型名称<input id="modelInput" placeholder="gpt-4o-mini" /></label><div class="form-grid"><label>监督语气<select id="toneInput"><option>温柔陪跑</option><option>友好助理</option><option>耐心教练</option><option>温和助理</option><option>严格教练</option><option>老板模式</option><option>高压调度</option><option>角色扮演模式</option></select></label><label>默认检查间隔（分钟）<input id="reminderInput" type="number" min="5" max="240" /></label></div><div class="form-grid"><label>工作开始<input id="workStartInput" type="time" /></label><label>工作结束<input id="workEndInput" type="time" /></label></div><label class="checkbox-label"><input id="notificationsInput" type="checkbox" /> 开启桌面通知</label><div class="settings-section"><div class="settings-section-title">数据与支持</div><p class="settings-section-copy">数据默认保存在本机。导出备份不会包含 API Key，导入备份会保留当前 API Key。</p><div class="data-actions"><button type="button" id="exportDataButton" class="secondary">导出备份</button><button type="button" id="importDataButton" class="secondary">导入备份</button></div><label>作者支持链接（可选）<input id="supportUrlInput" type="url" placeholder="https://afdian.com/a/你的名字" /></label><div class="support-card"><div><strong>请作者喝咖啡 ☕</strong><p>如果这个免费工具帮到了你，欢迎支持作者继续维护。</p></div><button type="button" id="supportAuthorButton" class="text-button">打开支持页面</button></div></div><div class="modal-actions"><button type="button" id="testConnectionButton" class="secondary">测试连接</button><button type="submit" class="primary">保存设置</button></div><div id="settingsStatus" class="form-status"></div></form></div></div>
+    <div id="entryModal" class="modal hidden"><div id="entryBackdrop" class="modal-backdrop"></div><div class="modal-card entry-modal-card"><div class="modal-header"><div><h2 id="entryModalTitle">添加任务</h2><p id="entryModalHint">先把要做的事情写清楚，主管会继续安排。</p></div><button id="closeEntryButton" type="button" class="icon-button">×</button></div><form id="entryForm" class="settings-form"><label id="entryTitleField">任务名称<input id="entryTitleInput" required maxlength="120" placeholder="例如：整理本周项目周报" /></label><label id="entryDescriptionField">任务说明（可选）<textarea id="entryDescriptionInput" rows="3" maxlength="500" placeholder="补充完成标准或背景"></textarea></label><label id="entryReminderField" class="hidden">自然语言提醒<textarea id="entryReminderInput" rows="3" maxlength="300" placeholder="例如：10分钟后提醒我吃饭，或每天9点提醒我站起来活动"></textarea></label><div id="entryTaskFields" class="form-grid"><label>初始状态<select id="entryStatusInput"><option value="planned">待执行</option><option value="active">执行中</option><option value="waiting">等待中</option><option value="blocked">阻塞</option></select></label><label>优先级<select id="entryPriorityInput"><option value="normal">普通</option><option value="high">高</option><option value="urgent">紧急</option><option value="low">低</option></select></label><label>预计用时（分钟）<input id="entryEstimateInput" type="number" min="1" max="1440" value="30" /></label></div><div class="modal-actions"><button type="button" id="cancelEntryButton" class="secondary">取消</button><button type="submit" class="primary">保存</button></div><div id="entryStatusMessage" class="form-status"></div></form></div></div>
+    <div id="toast" class="toast hidden"></div>
+    <script src="renderer.js"></script>
+  </body>
+</html>

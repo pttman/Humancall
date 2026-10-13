@@ -1,0 +1,33 @@
+{
+  "html": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\logo_motion.html",
+  "times_ms": [
+    0,
+    360,
+    576,
+    960,
+    1200,
+    1560,
+    1968,
+    2280,
+    2400
+  ],
+  "frames": [
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_000000ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_000360ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_000576ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_000960ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_001200ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_001560ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_001968ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_002280ms.png",
+    "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_002400ms.png"
+  ],
+  "strip": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_strip.png",
+  "final_frame_contract": {
+    "final_frame": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\outputs\\motion_frames\\frame_002400ms.png",
+    "static_render": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\dispatch-board\\final_render.png",
+    "mean_abs_diff": 3.49,
+    "max_abs_diff": 240.0,
+    "pct_pixels_off_by_25plus": 1.771
+  }
+}

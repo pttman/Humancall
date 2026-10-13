@@ -1,0 +1,54 @@
+{
+ "html": "C:\\Users\\xchan\\Documents\\ChatGPT\\AI\u7edf\u6cbb\u4eba\u7c7b\\pixel2motion_outputs\\human-control\\logo_motion.html",
+ "probe": [
+  {
+   "t": 0.0,
+   "#left-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  },
+  {
+   "t": 456.0,
+   "#left-arm:transform": "matrix(0.984808, -0.173648, 0.173648, 0.984808, 0, -76)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 0.06, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  },
+  {
+   "t": 576.0,
+   "#left-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  },
+  {
+   "t": 696.0,
+   "#left-arm:transform": "matrix(0.990268, -0.139173, 0.139173, 0.990268, 0, -64)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 0.18, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  },
+  {
+   "t": 1056.0,
+   "#left-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-arm:transform": "matrix(0.984808, 0.173648, -0.173648, 0.984808, 0, -78)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 0.04, 0, 0)"
+  },
+  {
+   "t": 1224.0,
+   "#left-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  },
+  {
+   "t": 2400.0,
+   "#left-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-arm:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#left-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)",
+   "#right-string-lower:transform": "matrix(1, 0, 0, 1, 0, 0)"
+  }
+ ]
+}

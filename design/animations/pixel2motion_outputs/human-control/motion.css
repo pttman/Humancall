@@ -1,0 +1,32 @@
+:root { --p2m-duration: 2400ms; }
+#logo, #stage, #strings, #human { transform: none; }
+#left-arm, #left-string-lower, #right-arm, #right-string-lower { transform-box: fill-box; transform-origin: center; }
+#left-arm { animation: p2m-left-double var(--p2m-duration) linear infinite both; }
+#left-string-lower { animation: p2m-left-string var(--p2m-duration) linear infinite both; transform-origin: 50% 0%; }
+#right-arm { animation: p2m-right-single var(--p2m-duration) linear infinite both; }
+#right-string-lower { animation: p2m-right-string var(--p2m-duration) linear infinite both; transform-origin: 50% 0%; }
+@keyframes p2m-left-double {
+  0%, 15% { transform: translateY(0); }
+  19% { transform: translateY(-76px) rotate(-10deg); }
+  24% { transform: translateY(0); }
+  29% { transform: translateY(-64px) rotate(-8deg); }
+  35%, 100% { transform: translateY(0); }
+}
+@keyframes p2m-left-string {
+  0%, 15% { transform: scaleY(1); }
+  19% { transform: scaleY(.06); }
+  24% { transform: scaleY(1); }
+  29% { transform: scaleY(.18); }
+  35%, 100% { transform: scaleY(1); }
+}
+@keyframes p2m-right-single {
+  0%, 39% { transform: translateY(0); }
+  44% { transform: translateY(-78px) rotate(10deg); }
+  51% { transform: translateY(0); }
+  51%, 100% { transform: translateY(0); }
+}
+@keyframes p2m-right-string {
+  0%, 39% { transform: scaleY(1); }
+  44% { transform: scaleY(.04); }
+  51%, 100% { transform: scaleY(1); }
+}

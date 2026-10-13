@@ -1,0 +1,54 @@
+{
+  "name": "human-dispatch",
+  "version": "0.1.0",
+  "description": "人类调度：让 AI 安排、提醒和监督你的工作",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer.js",
+    "pack:offline": "node tools/package-portable.cjs",
+    "pack": "npm run check && electron-builder --dir",
+    "dist": "npm run check && electron-builder --win",
+    "dist:portable": "npm run check && electron-builder --win portable"
+  },
+  "build": {
+    "appId": "com.human-dispatch.desktop",
+    "productName": "人类调度",
+    "artifactName": "人类调度-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "!assets/*.mp3"
+    ],
+    "extraResources": [
+      {
+        "from": "assets/notification.mp3",
+        "to": "assets/notification.mp3"
+      }
+    ],
+    "win": {
+      "icon": "assets/app-icon.ico",
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "人类调度"
+    }
+  },
+  "devDependencies": {
+    "electron": "28.2.0",
+    "electron-builder": "^26.15.3",
+    "png-to-ico": "^3.0.2"
+  }
+}

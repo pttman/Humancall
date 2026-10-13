@@ -1,0 +1,10 @@
+{
+  "method": "raster-anchored semantic SVG wrapper",
+  "source": "ChatGPT Image 2026年9月23日 17_11_22.png",
+  "smoothness_gate": "The source is preserved as an embedded raster artwork; no jagged trace is introduced.",
+  "motion_ready_parts": [
+    "logo",
+    "raster-mark",
+    "sheen"
+  ]
+}
