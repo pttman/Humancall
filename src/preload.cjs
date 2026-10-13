@@ -17,5 +17,6 @@ contextBridge.exposeInMainWorld('humanDispatch', {
   resizeBubble: (height) => ipcRenderer.invoke('bubble:resize', height),
   getAlertSoundUrl: () => ipcRenderer.invoke('audio:alert-url'),
   onBubbleShow: (callback) => ipcRenderer.on('bubble:show', (_, payload) => callback(payload)),
+  onBubbleClear: (callback) => ipcRenderer.on('bubble:clear', () => callback()),
   onBubbleSubmit: (callback) => ipcRenderer.on('bubble:submit', (_, text) => callback(text))
 });

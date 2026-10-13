@@ -4,11 +4,103 @@
   flex-direction: column;
   height: auto;
   min-height: 194px;
-  overflow: hidden;
+  overflow: visible;
+  isolation: isolate;
+}
+
+.bubble-shell::before,
+.bubble-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transform-origin: center;
+  background: linear-gradient(145deg, color-mix(in srgb, var(--bg) 96%, white 4%), var(--bg));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .18);
+}
+
+.bubble-shell::before {
+  transform: translate(6px, 6px) scale(.985);
+}
+
+.bubble-shell::after {
+  transform: translate(12px, 12px) scale(.97);
+}
+
+html[data-stack="stacked"] .bubble-shell::before { opacity: .7; }
+html[data-stack="stacked"] .bubble-shell::after { opacity: .38; }
+
+.bubble-shell > * {
+  position: relative;
+  z-index: 1;
 }
 
 .bubble-head {
   padding-right: 28px;
+}
+
+.bubble-shell {
+  border-color: color-mix(in srgb, var(--line) 72%, white 28%);
+  box-shadow: 0 16px 38px rgba(0, 0, 0, .24), 0 2px 8px rgba(0, 0, 0, .08);
+}
+
+.close {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid color-mix(in srgb, var(--muted) 38%, transparent);
+  border-radius: 50%;
+  color: color-mix(in srgb, var(--text) 70%, var(--muted));
+  background: color-mix(in srgb, var(--bg) 35%, transparent);
+  font-size: 19px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 160ms ease, background 160ms ease, border-color 160ms ease, transform 180ms ease;
+}
+
+.close:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--muted) 70%, transparent);
+  background: color-mix(in srgb, var(--muted) 14%, transparent);
+  transform: rotate(90deg) scale(1.04);
+}
+
+.stack-info {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 9px;
+  white-space: nowrap;
+}
+
+html[data-stack="stacked"] .bubble-shell {
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .45), 5px 5px 0 -2px var(--bg), 5px 5px 0 -1px var(--line), 10px 10px 0 -5px var(--bg), 10px 10px 0 -4px var(--line);
+}
+
+@keyframes cardSwitchNext {
+  0% { opacity: .25; transform: translateY(26px) scale(.93); filter: blur(1px); }
+  68% { opacity: 1; transform: translateY(-3px) scale(1.012); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cardSwitchPrev {
+  0% { opacity: .25; transform: translateY(-26px) scale(.93); filter: blur(1px); }
+  68% { opacity: 1; transform: translateY(3px) scale(1.012); filter: blur(0); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.bubble-shell.switch-next { animation: cardSwitchNext 260ms cubic-bezier(.22, .78, .24, 1); }
+.bubble-shell.switch-prev { animation: cardSwitchPrev 260ms cubic-bezier(.22, .78, .24, 1); }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble-shell.switch-next,
+  .bubble-shell.switch-prev { animation-duration: 1ms; }
 }
 
 .close {
@@ -31,7 +123,13 @@
   overflow-y: auto;
   padding-right: 5px;
   scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted) 55%, transparent) transparent;
 }
+
+.bubble-body::-webkit-scrollbar { width: 7px; }
+.bubble-body::-webkit-scrollbar-track { background: transparent; }
+.bubble-body::-webkit-scrollbar-thumb { border: 2px solid transparent; border-radius: 999px; background: color-mix(in srgb, var(--muted) 48%, transparent); background-clip: padding-box; }
+.bubble-body::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: padding-box; }
 
 .quick-actions,
 .bubble-shell form,
@@ -43,6 +141,58 @@
   flex-wrap: wrap;
 }
 
+.quick-actions button {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--muted));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bg) 48%, transparent);
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.quick-actions button:hover {
+  border-color: color-mix(in srgb, var(--green) 70%, var(--line));
+  background: color-mix(in srgb, var(--green) 13%, var(--bg));
+  transform: translateY(-1px);
+}
+
+.bubble-shell form input {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--muted));
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .08);
+}
+
+.bubble-shell form button {
+  min-width: 58px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  box-shadow: 0 4px 10px color-mix(in srgb, var(--green) 20%, transparent);
+  cursor: pointer;
+  transition: filter 150ms ease, transform 150ms ease, box-shadow 150ms ease;
+}
+
+.bubble-shell form button:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--green) 28%, transparent);
+}
+
 .open-main {
   min-height: 16px;
+  width: auto;
+  align-self: center;
+  margin: 10px auto 0;
+  padding: 7px 14px;
+  border: 1px solid color-mix(in srgb, var(--muted) 42%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--text) 72%, var(--muted));
+  background: color-mix(in srgb, var(--bg) 32%, transparent);
+  cursor: pointer;
+  transition: color 150ms ease, background 150ms ease, border-color 150ms ease, transform 150ms ease;
+}
+
+.open-main:hover {
+  color: var(--text);
+  border-color: color-mix(in srgb, var(--muted) 70%, transparent);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  transform: translateY(-1px);
 }

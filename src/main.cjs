@@ -7,7 +7,7 @@ let mainWindow;
 let tray;
 let bubbleWindow;
 let bubbleLoaded = false;
-let queuedBubble;
+let queuedBubbles = [];
 let lastPassiveNudgeAt = 0;
 let passiveTimer;
 const appIconPngPath = path.join(__dirname, 'assets', 'app-icon.png');
@@ -25,6 +25,7 @@ const TONE_GUIDANCE = {
 };
 const BASE_SYSTEM_PROMPT = `你是“人类调度”，负责帮助用户收集工作、拆解任务、安排下一步并持续追踪结果。
 你的职责是收集工作、拆解任务、安排下一步、定时检查、追问结果，并在用户拖延或没有及时回复时把用户叫回来。
+遇到“检查配置并提供部署包”这类包含多个交付结果的工作时，建立一个总任务，再建立有明确顺序的子任务；不要把它们当成互不相关的并列任务。总任务只用于展示整体进度，真正监督和提醒应指向当前可执行的子任务。
 用户没有及时回复时，允许你重复督促；在合理范围内可以偶尔连续发出两条简短提醒，但必须遵守应用设置中的被动督促频率，不能无限轰炸。
 每次尽量给出一个明确的下一步、完成标准和汇报时间。不要臆造用户已经完成工作。
 不得进行人身攻击、身份歧视、现实伤害威胁，也不要鼓励危险过劳。`;
@@ -44,6 +45,7 @@ const defaultState = {
     reminderMinutes: 30,
     passiveNudgesEnabled: true,
     passiveNudgeMinutes: 10,
+    quietUntil: '',
     supportUrl: '',
     systemPrompt: TONE_PROMPTS['老板模式'],
     tonePrompts: TONE_PROMPTS,
@@ -142,7 +144,7 @@ function createBubbleWindow() {
     }
   });
   bubbleWindow.loadFile(path.join(__dirname, 'bubble.html'));
-  bubbleWindow.once('ready-to-show', () => { bubbleLoaded = true; if (queuedBubble) { const payload = queuedBubble; queuedBubble = null; showBubble(payload); } });
+  bubbleWindow.once('ready-to-show', () => { bubbleLoaded = true; const pending = queuedBubbles; queuedBubbles = []; pending.forEach((payload) => showBubble(payload)); });
   bubbleWindow.on('closed', () => { bubbleWindow = null; bubbleLoaded = false; });
 }
 
@@ -170,9 +172,9 @@ function positionBubble() {
 
 function showBubble(payload) {
   if (!bubbleWindow) return;
-  if (!bubbleLoaded) { queuedBubble = payload; return; }
+  if (!bubbleLoaded) { queuedBubbles.push(payload); return; }
   const currentState = readState();
-  payload = { ...payload, theme: payload.theme || currentState.settings.theme || 'alert-red' };
+  payload = { ...payload, bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'alert-red' };
   positionBubble();
   bubbleWindow.webContents.send('bubble:show', payload);
   bubbleWindow.showInactive();
@@ -215,17 +217,17 @@ async function callModel({ settings, messages, tasks, reminders }) {
   if (!endpoint || !settings.apiKey) throw new Error('未配置 API Base URL 或 API Key');
   const taskContext = tasks.slice(0, 50).map((task) => ({
     id: task.id, title: task.title, status: task.status, dueAt: task.dueAt,
-    priority: task.priority, project: task.projectName, parentId: task.parentId
+    priority: task.priority, project: task.projectName, parentId: task.parentId, isContainer: Boolean(task.isContainer)
   }));
   const reminderContext = (reminders || []).slice(0, 50).map((reminder) => ({
     id: reminder.id, title: reminder.title, nextAt: reminder.nextAt, repeat: reminder.repeat, enabled: reminder.enabled
   }));
   const selectedPrompt = settings.tonePrompts?.[settings.tone] || settings.systemPrompt || TONE_PROMPTS[settings.tone] || DEFAULT_SYSTEM_PROMPT;
   const system = `${selectedPrompt}\n\n当前监督语气档位：${settings.tone}。${TONE_GUIDANCE[settings.tone] || ''}\n` +
-    '你要把用户的自然语言变成可执行的工作管理动作。提醒和任务是两种不同对象：提醒用于某个时间点通知用户，任务用于持续督办。\n' +
+    '你要把用户的自然语言变成可执行的工作管理动作。提醒和任务是两种不同对象：提醒用于某个时间点通知用户，任务用于持续督办。多个交付结果请使用总任务和子任务：先创建总任务，再让子任务用 parentTitle 指向总任务标题；总任务可设置 isContainer=true。\n' +
     '只返回严格 JSON，不要 Markdown。格式：' +
-    '{"reply":"给用户的中文回复","actions":[{"type":"create_task|update_task|complete_task|block_task|postpone_task|create_project|create_reminder|update_reminder|delete_reminder|clear_all_tasks|none","taskId":"可选","reminderId":"可选","title":"可选","description":"可选","dueAt":"ISO时间或空","nextAt":"ISO时间或空","repeat":"none|daily|weekly","weekday":0,"estimatedMinutes":30,"priority":"low|normal|high|urgent","status":"可选","projectName":"可选","enabled":true}],"followUpMinutes":数字或null}\n' +
-    '完成任务时优先用 complete_task；用户说遇到问题用 block_task；用户要求延期用 postpone_task。用户明确要求清空全部任务时可以返回 clear_all_tasks，但客户端必须二次确认后才执行。不要臆造用户已经完成。\n' +
+    '{"reply":"给用户的中文回复","actions":[{"type":"create_task|update_task|complete_task|block_task|postpone_task|snooze_task|delete_task|create_project|create_reminder|update_reminder|delete_reminder|clear_all_tasks|none","taskId":"可选","reminderId":"可选","title":"可选","description":"可选","parentId":"可选","parentTitle":"可选","isContainer":false,"dueAt":"ISO时间或空","nextAt":"ISO时间或空","repeat":"none|daily|weekly","weekday":0,"estimatedMinutes":30,"priority":"low|normal|high|urgent","status":"可选","projectName":"可选","enabled":true}],"followUpMinutes":数字或null}\n' +
+    '完成任务时优先用 complete_task；用户说遇到问题用 block_task；用户说“推到明天做”“明天再做”或要求延期时，必须对现有任务使用 snooze_task 并提供 dueAt 和 followUpMinutes，不能创建新任务，客户端会在此期间静默。用户要求删除单个任务时返回 delete_task，并提供 taskId 或精确 title；客户端必须二次确认后才执行。用户明确要求清空全部任务时可以返回 clear_all_tasks，但客户端必须二次确认后才执行。不要臆造用户已经完成或要求删除。\n' +
     '创建提醒时必须提供 nextAt（ISO 时间）；一次性提醒 repeat 为 none，每天重复为 daily，每周重复为 weekly，并提供 weekday（周日为 0）。\n' +
     `当前任务：${JSON.stringify(taskContext)}\n当前提醒：${JSON.stringify(reminderContext)}`;
   const response = await fetch(endpoint, {
@@ -297,10 +299,17 @@ function parseReminderRequest(input) {
 function localFallback(text, tasks) {
   const input = String(text || '').trim();
   const lower = input.toLowerCase();
-  const active = tasks.find((task) => task.status === 'active');
+  const active = tasks.find((task) => task.status === 'active' && !task.isContainer);
   const reminder = parseReminderRequest(input);
   if (reminder) {
     return { reply: `${reminder.repeat === 'none' ? '已安排提醒' : '已安排重复提醒'}：“${reminder.title}”，时间到了我会叫你。`, actions: [{ type: 'create_reminder', ...reminder }] };
+  }
+  if (/(删掉|删除|移除)/.test(input) && !/(不要|别|不删)/.test(input)) {
+    const candidate = input.replace(/^(请|帮我)?\s*(删掉|删除|移除)\s*(这个|该|当前)?\s*(任务|工作)?[：:\s]*/i, '').trim();
+    const target = tasks.find((task) => candidate && task.title === candidate)
+      || tasks.find((task) => candidate && task.title.includes(candidate))
+      || (/(这个|该|当前)(任务|工作)?/.test(input) ? active : null);
+    if (target) return { reply: `收到删除请求：“${target.title}”。请确认后执行。`, actions: [{ type: 'delete_task', taskId: target.id, title: target.title }] };
   }
   if (/^(完成|做完|搞定|已完成|完成了)/.test(input)) {
     const candidate = input.replace(/^(完成|做完|搞定|已完成|完成了)[:：\s]*/, '').trim();
@@ -311,8 +320,10 @@ function localFallback(text, tasks) {
     return { reply: `已将“${active.title}”标记为阻塞。说清楚阻塞原因，或者接受替代任务。`, actions: [{ type: 'block_task', taskId: active.id, description: input }] };
   }
   if (/(再给我|延期|晚点|稍后)/.test(input) && active) {
-    const minutes = Number(input.match(/(\d+)\s*(分钟|分)/)?.[1]) || 10;
-    return { reply: `准你再拖 ${minutes} 分钟。之后回来汇报“${active.title}”。`, actions: [{ type: 'update_task', taskId: active.id, status: 'planned', dueAt: new Date(Date.now() + minutes * 60000).toISOString() }], followUpMinutes: minutes };
+    const match = input.match(/(\d+|[一二三四五六七八九十]+|半)\s*(分钟|分|小时|时)/);
+    const number = match ? (match[1] === '半' ? 0.5 : /^\d+$/.test(match[1]) ? Number(match[1]) : [...match[1]].reduce((total, digit) => total * 10 + ({ 一: 1, 二: 2, 三: 3, 四: 4, 五: 5, 六: 6, 七: 7, 八: 8, 九: 9, 十: 10 }[digit] || 0), 0)) : 1;
+    const minutes = match ? (match[2].startsWith('小') || match[2] === '时' ? number * 60 : number) : 10;
+    return { reply: `准你再拖 ${minutes} 分钟。静默期间不会打扰你，之后回来汇报“${active.title}”。`, actions: [{ type: 'snooze_task', taskId: active.id, dueAt: new Date(Date.now() + minutes * 60000).toISOString() }], followUpMinutes: minutes };
   }
   if (/(换一项|换个任务|换一份工作|换个工作)/.test(input)) {
     const next = tasks.find((task) => task.id !== active?.id && ['planned', 'inbox'].includes(task.status));
@@ -323,13 +334,24 @@ function localFallback(text, tasks) {
     }
     return { reply: '没有第二项可换。把新的工作交出来，或者继续完成当前任务。', actions: [] };
   }
-  if (/我现在做什么|现在做什么|安排一下|下一项/.test(input)) {
-    const next = tasks.find((task) => ['planned', 'inbox', 'active'].includes(task.status));
+  if (/我现在做什么|现在做什么|安排一下|下一项|继续下一项|安排新工作/.test(input)) {
+    const next = tasks.find((task) => ['planned', 'inbox', 'active'].includes(task.status) && (!task.dueAt || new Date(task.dueAt) <= new Date()));
     if (next) return { reply: `现在执行“${next.title}”。先做第一步，${next.estimatedMinutes || 30} 分钟后回来汇报。`, actions: [{ type: 'update_task', taskId: next.id, status: 'active' }], followUpMinutes: 30 };
     return { reply: '当前没有可执行任务。把你要做的事情交出来。', actions: [] };
   }
   const pieces = input.split(/[，。；;！!\n]+/).map((part) => part.trim()).filter((part) => part.length >= 2);
   const candidates = pieces.length ? pieces : [input];
+  if (candidates.length > 1) {
+    const parentTitle = input;
+    return {
+      reply: `已建立总任务“${parentTitle}”，并拆成 ${candidates.length} 个子任务。先执行“${candidates[0]}”，完成后再进入下一项。`,
+      actions: [
+        { type: 'create_task', title: parentTitle, description: '由多个交付结果组成的总任务', isContainer: true, status: 'planned' },
+        ...candidates.slice(0, 6).map((title, index) => ({ type: 'create_task', title, parentTitle, priority: index === 0 ? 'high' : 'normal', estimatedMinutes: 30, status: index === 0 ? 'active' : 'planned' }))
+      ],
+      followUpMinutes: 30
+    };
+  }
   return {
     reply: `收到。已把你的工作纳入调度。先执行“${candidates[0]}”，完成后回来报告。`,
     actions: candidates.slice(0, 6).map((title, index) => ({ type: 'create_task', title, priority: index === 0 ? 'high' : 'normal', estimatedMinutes: 30, status: index === 0 ? 'active' : 'planned' })),
@@ -337,9 +359,8 @@ function localFallback(text, tasks) {
   };
 }
 
-function notify(title, body) {
-  if (Notification.isSupported()) new Notification({ title, body }).show();
-}
+// 监管提醒统一使用自绘气泡，避免同时出现重复的系统黑色通知窗。
+function notify() {}
 
 function isWithinWorkHours(settings) {
   const current = new Date();
@@ -352,13 +373,15 @@ function isWithinWorkHours(settings) {
 }
 
 function chooseSupervisionTask(tasks) {
-  return tasks.find((task) => task.status === 'active') ||
-    tasks.filter((task) => ['planned', 'inbox', 'blocked'].includes(task.status)).sort((a, b) => (a.dueAt || '9999').localeCompare(b.dueAt || '9999'))[0];
+  const current = new Date();
+  return tasks.find((task) => task.status === 'active' && !task.isContainer) ||
+    tasks.filter((task) => !task.isContainer && ['planned', 'inbox', 'blocked'].includes(task.status) && (!task.dueAt || new Date(task.dueAt) <= current)).sort((a, b) => (a.dueAt || '9999').localeCompare(b.dueAt || '9999'))[0];
 }
 
 function passiveNudge(force = false) {
   const state = readState();
   if (!state.settings.notifications || (!force && state.settings.passiveNudgesEnabled === false)) return;
+  if (!force && state.settings.quietUntil && new Date(state.settings.quietUntil) > new Date()) return;
   if (!force && !isWithinWorkHours(state.settings)) return;
   const interval = Math.max(5, Number(state.settings.passiveNudgeMinutes) || 10) * 60 * 1000;
   if (!force && Date.now() - lastPassiveNudgeAt < interval) return;
@@ -433,7 +456,7 @@ app.whenReady().then(() => {
     const soundPath = findAlertSound();
     return soundPath ? pathToFileURL(soundPath).toString() : null;
   });
-  ipcMain.handle('bubble:open-main', () => { mainWindow.show(); mainWindow.focus(); hideBubble(); return true; });
+  ipcMain.handle('bubble:open-main', () => { if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.webContents.send('bubble:clear'); mainWindow.show(); mainWindow.focus(); hideBubble(); return true; });
   ipcMain.handle('bubble:submit', (_, text) => { mainWindow.webContents.send('bubble:submit', text); hideBubble(); return true; });
   createWindow();
   createBubbleWindow();

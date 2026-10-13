@@ -1,8 +1,63 @@
+.page-scrollbar,
+.task-scrollbar,
+.chat-scrollbar {
+  scrollbar-width: thin;
+}
+
+html {
+  scrollbar-width: thin;
+  scrollbar-color: #d7ad55 transparent;
+}
+
+html::-webkit-scrollbar,
+body::-webkit-scrollbar {
+  width: 11px;
+}
+
+html::-webkit-scrollbar-track,
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb,
+body::-webkit-scrollbar-thumb {
+  min-height: 52px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #d7ad55;
+  background-clip: padding-box;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .16);
+}
+
+html::-webkit-scrollbar-thumb:hover,
+body::-webkit-scrollbar-thumb:hover {
+  background: #e6bf68;
+  background-clip: padding-box;
+}
+
 .prompt-setting textarea {
   min-height: 128px;
   resize: vertical;
   line-height: 1.5;
 }
+
+.layout {
+  column-gap: 26px;
+}
+
+.side-column {
+  position: sticky;
+  top: 20px;
+  align-self: start;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding-left: 18px;
+  border-left: 1px solid color-mix(in srgb, var(--muted) 18%, transparent);
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+}
+
+.side-column::-webkit-scrollbar { width: 0; height: 0; display: none; }
 
 .quick-prompts {
   display: flex;
@@ -78,6 +133,20 @@
   }
 }
 
+@media (max-width: 900px) {
+  .layout {
+    column-gap: 18px;
+  }
+
+  .side-column {
+    position: static;
+    max-height: none;
+    overflow: visible;
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
 .reminder-item {
   padding: 11px 9px;
   border-top: 1px solid var(--line);
@@ -130,13 +199,127 @@
   min-width: 0;
 }
 
+#taskList {
+  max-height: none;
+  overflow: visible;
+  scrollbar-width: none;
+}
+
+#taskList::-webkit-scrollbar {
+  display: none;
+}
+
+.chat-messages {
+  scrollbar-width: thin;
+  scrollbar-color: #d88eac transparent;
+}
+
+.chat-messages::-webkit-scrollbar {
+  width: 9px;
+}
+
+.chat-messages::-webkit-scrollbar-track {
+  margin: 8px 0;
+  background: transparent;
+}
+
+.chat-messages::-webkit-scrollbar-thumb {
+  min-height: 42px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: #d88eac;
+  background-clip: padding-box;
+}
+
+.chat-messages::-webkit-scrollbar-thumb:hover {
+  background: #edabc5;
+  background-clip: padding-box;
+}
+
+.task-title-line {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 4px;
+}
+
+.task-collapse {
+  flex: 0 0 auto;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease, transform 140ms ease;
+}
+
+.task-collapse:hover {
+  color: var(--accent, var(--green));
+  background: color-mix(in srgb, var(--accent, var(--green)) 12%, transparent);
+  transform: translateY(-1px);
+}
+
+.compact-toggle {
+  min-width: 76px;
+  padding: 7px 6px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.compact-toggle:hover {
+  color: var(--text);
+  border-color: var(--accent, var(--green));
+}
+
 .task-item {
   grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  border-top-color: color-mix(in srgb, var(--muted) 25%, transparent);
+}
+
+.task-item.parent-task {
+  background: color-mix(in srgb, var(--panel-2) 45%, transparent);
+}
+
+.task-item.parent-task .task-title {
+  font-weight: 800;
+}
+
+.task-item.subtask {
+  padding-left: 28px;
+  border-left: 0;
+  border-top: 0;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+
+.task-item.subtask .task-title {
+  color: color-mix(in srgb, var(--text) 86%, var(--muted));
+  font-size: 11px;
+}
+
+.task-item.subtask .task-sub {
+  font-size: 9px;
+}
+
+.task-item.subtask .task-dot {
+  width: 6px;
+  height: 6px;
+  margin-left: 1px;
 }
 
 .task-toolbar {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 104px;
+  grid-template-columns: minmax(0, 1fr) 104px auto;
   gap: 7px;
   padding: 0 11px 8px;
 }
@@ -215,19 +398,31 @@
 .reminder-delete {
   min-width: 26px;
   padding: 5px 4px;
-  border: 1px solid transparent;
+  border: 1px solid color-mix(in srgb, var(--muted) 42%, transparent);
   border-radius: 7px;
   color: var(--muted);
-  background: transparent;
+  background: color-mix(in srgb, var(--panel-2) 72%, transparent);
   font-size: 10px;
+  font-weight: 700;
   white-space: nowrap;
+  cursor: pointer;
+  transition: color 140ms ease, border-color 140ms ease, background 140ms ease, transform 140ms ease;
 }
 
 .task-delete:hover,
 .reminder-delete:hover {
   color: var(--red);
-  border-color: color-mix(in srgb, var(--red) 45%, transparent);
-  background: color-mix(in srgb, var(--red) 10%, transparent);
+  border-color: color-mix(in srgb, var(--red) 72%, transparent);
+  background: color-mix(in srgb, var(--red) 14%, var(--panel-2));
+  transform: translateY(-1px);
+}
+
+.task-delete.is-pending,
+.reminder-delete.is-pending {
+  color: var(--red);
+  border-color: var(--red);
+  background: color-mix(in srgb, var(--red) 18%, var(--panel-2));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--red) 12%, transparent);
 }
 
 .task-status-select:focus,
@@ -336,4 +531,12 @@
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.config-reminder-card {
+  width: min(480px, calc(100vw - 28px));
+}
+
+.config-reminder-card .modal-header p {
+  max-width: 390px;
 }
