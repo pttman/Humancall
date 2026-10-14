@@ -1,6 +1,6 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
@@ -39,11 +39,15 @@
       ]
     },
     "nsis": {
+      "artifactName": "Humancall-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "人类调度"
+    },
+    "portable": {
+      "artifactName": "Humancall-Portable-${version}-${arch}.${ext}"
     }
   },
   "devDependencies": {

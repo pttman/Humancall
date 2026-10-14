@@ -40,8 +40,16 @@ html[data-stack="stacked"] .bubble-shell::after { opacity: .38; }
 }
 
 .bubble-head {
-  padding-right: 28px;
+  display: grid;
+  grid-template-columns: 27px minmax(0, 1fr) 30px;
+  column-gap: 9px;
+  row-gap: 6px;
+  padding-right: 0;
 }
+
+.bubble-head .brand-mark { grid-column: 1; grid-row: 1; }
+.bubble-heading { grid-column: 2; grid-row: 1; min-width: 0; }
+.bubble-heading #bubbleTitle { overflow-wrap: anywhere; }
 
 .bubble-shell {
   border-color: color-mix(in srgb, var(--line) 72%, white 28%);
@@ -72,12 +80,21 @@ html[data-stack="stacked"] .bubble-shell::after { opacity: .38; }
   transform: rotate(90deg) scale(1.04);
 }
 
-.stack-info {
-  margin-left: auto;
+.bubble-head .stack-info {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: start;
+  margin: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 10%, transparent);
   color: var(--muted);
   font-size: 9px;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
+
+.bubble-head .stack-info:empty { display: none; }
 
 html[data-stack="stacked"] .bubble-shell {
   box-shadow: 0 18px 42px rgba(0, 0, 0, .45), 5px 5px 0 -2px var(--bg), 5px 5px 0 -1px var(--line), 10px 10px 0 -5px var(--bg), 10px 10px 0 -4px var(--line);
@@ -104,12 +121,18 @@ html[data-stack="stacked"] .bubble-shell {
 }
 
 .close {
-  position: absolute;
-  top: 10px;
-  right: 11px;
+  position: static;
+  grid-column: 3;
+  grid-row: 1;
+  align-self: start;
   z-index: 2;
   margin-left: 0;
   line-height: 1;
+}
+
+.close:focus-visible {
+  outline: 2px solid var(--green);
+  outline-offset: 3px;
 }
 
 .close:hover {
