@@ -1,0 +1,48 @@
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { createServer } = require('../server.cjs');
+const core = require('../core.cjs');
+test('HTTP 数据、备份、模型降级、静态资源和来源限制', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'human-dispatch-test-'));
+  core.configureDataDirectory(directory);
+  const server = createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => { await new Promise(resolve => server.close(resolve)); fs.rmSync(directory, { recursive: true, force: true }); });
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const get = async route => (await fetch(base + route)).json();
+  const send = (route, method, data, headers = {}) => fetch(base + route, { method, headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(data) });
+  assert.deepEqual(await get('/api/health'), { ok: true });
+  const state = await get('/api/state'); state.tasks.push({ id: 'task-1', title: '检查配置', status: 'active' });
+  state.settings.apiKey = 'test-secret';
+  assert.equal((await send('/api/state', 'PUT', state)).status, 200);
+  assert.equal((await get('/api/state')).tasks[0].title, '检查配置');
+  const backup = await get('/api/backup'); assert.equal(backup.settings.apiKey, '');
+  backup.tasks[0].title = '导入后的任务';
+  const imported = await (await send('/api/backup', 'POST', backup)).json();
+  assert.equal(imported.state.settings.apiKey, 'test-secret');
+  assert.equal(imported.state.tasks[0].title, '导入后的任务');
+  state.settings.apiKey = ''; await send('/api/state', 'PUT', state);
+  const result = await (await send('/api/ai/chat', 'POST', { text: '10分钟后提醒我吃饭' })).json();
+  assert.equal(result.source, 'local'); assert.equal(result.actions[0].type, 'create_reminder');
+  assert.equal((await send('/api/state', 'PUT', {})).status, 400);
+  assert.equal((await send('/api/state', 'PUT', state, { Origin: 'https://evil.example' })).status, 403);
+  assert.equal((await fetch(base + '/api/state', { method: 'OPTIONS', headers: { Origin: 'http://127.0.0.1:5173' } })).status, 204);
+  assert.equal((await fetch(base + '/index.html')).status, 200);
+  assert.match(await (await fetch(base + '/api.js')).text(), /fetch\('/);
+  assert.equal((await fetch(base + '/package.json')).status, 404);
+  assert.equal((await fetch(base + '/api/missing')).status, 404);
+});
+test('模型请求使用原任务上下文并解析 JSON', async t => {
+  const server = require('node:http').createServer(async (req, res) => {
+    let raw = ''; for await (const chunk of req) raw += chunk;
+    const payload = JSON.parse(raw); assert.match(payload.messages[0].content, /测试任务/);
+    assert.equal(req.headers.authorization, 'Bearer test');
+    res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ choices: [{ message: { content: '{"reply":"连接成功","actions":[]}' } }] }));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve)); t.after(() => new Promise(resolve => server.close(resolve)));
+  const settings = core.readState().settings;
+  const result = await core.callModel({ settings: { ...settings, baseUrl: `http://127.0.0.1:${server.address().port}/v1`, apiKey: 'test' }, messages: [], tasks: [{ title: '测试任务' }], reminders: [] });
+  assert.equal(result.reply, '连接成功');
+});

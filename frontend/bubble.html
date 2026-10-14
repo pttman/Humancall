@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'; media-src 'self' file:; connect-src 'self';" />
+    <link rel="stylesheet" href="bubble.css" />
+    <link rel="stylesheet" href="bubble-overrides.css" />
+    <link rel="stylesheet" href="bubble-themes.css" />
+  </head>
+  <body>
+    <section class="bubble-shell">
+      <div class="bubble-head"><div class="brand-mark">H</div><div class="bubble-heading"><strong>人类调度</strong><span id="bubbleTitle">该干活了</span></div><span id="bubbleStackInfo" class="stack-info" aria-live="polite"></span><button id="closeButton" class="close" type="button" aria-label="关闭当前提醒" title="关闭当前提醒">×</button></div>
+      <div id="bubbleBody" class="bubble-body">我在等你的汇报。</div>
+      <div id="quickActions" class="quick-actions"></div>
+      <form id="bubbleForm"><input id="bubbleInput" autocomplete="off" placeholder="直接回复主管……" /><button type="submit">发送</button></form>
+      <button id="openMainButton" class="open-main">打开完整调度窗</button>
+    </section>
+    <audio id="alertSound" preload="auto"></audio>
+    <script src="api.js"></script>
+    <script src="bubble.js"></script>
+  </body>
+</html>

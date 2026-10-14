@@ -1,14 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
-contextBridge.exposeInMainWorld('humanDispatch', {
-  loadState: () => ipcRenderer.invoke('state:load'),
-  saveState: (state) => ipcRenderer.invoke('state:save', state),
-  getDefaultPrompt: () => ipcRenderer.invoke('settings:default-prompt'),
-  getTonePrompts: () => ipcRenderer.invoke('settings:tone-prompts'),
-  exportData: () => ipcRenderer.invoke('data:export'),
-  importData: () => ipcRenderer.invoke('data:import'),
+contextBridge.exposeInMainWorld('desktopDispatch', {
+
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
-  askAI: (payload) => ipcRenderer.invoke('ai:chat', payload),
   notify: (payload) => ipcRenderer.invoke('notification:show', payload),
   showBubble: (payload) => ipcRenderer.invoke('bubble:show', payload),
   hideBubble: () => ipcRenderer.invoke('bubble:hide'),

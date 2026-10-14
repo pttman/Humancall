@@ -4,3 +4,10 @@ dist/
 release/
 build/
 *.log
+
+.env
+backend/data/
+work/
+
+design/
+tools/pixel2motion/

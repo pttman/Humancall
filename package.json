@@ -5,11 +5,16 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
-    "check": "node --check src/main.cjs && node --check src/preload.cjs && node --check src/renderer.js",
+    "check": "node tools/check.cjs",
     "pack:offline": "node tools/package-portable.cjs",
     "pack": "npm run check && electron-builder --dir",
     "dist": "npm run check && electron-builder --win",
-    "dist:portable": "npm run check && electron-builder --win portable"
+    "dist:portable": "npm run check && electron-builder --win portable",
+    "dev": "node tools/dev.cjs",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:backend": "npm run dev --workspace backend",
+    "test": "node --test backend/test/*.test.cjs",
+    "test:desktop": "node tools/run-desktop-test.cjs"
   },
   "build": {
     "appId": "com.human-dispatch.desktop",
@@ -23,7 +28,9 @@
       "src/**/*",
       "assets/**/*",
       "package.json",
-      "!assets/*.mp3"
+      "!assets/*.mp3",
+      "frontend/**/*",
+      "backend/*.cjs"
     ],
     "extraResources": [
       {
@@ -39,6 +46,7 @@
       ]
     },
     "nsis": {
+      "include": "tools/installer.nsh",
       "artifactName": "Humancall-Setup-${version}-${arch}.${ext}",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -54,5 +62,9 @@
     "electron": "28.2.0",
     "electron-builder": "^26.15.3",
     "png-to-ico": "^3.0.2"
-  }
+  },
+  "workspaces": [
+    "frontend",
+    "backend"
+  ]
 }

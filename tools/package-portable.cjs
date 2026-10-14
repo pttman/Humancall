@@ -15,6 +15,7 @@ async function main() {
   fs.mkdirSync(path.join(portable, 'resources', 'assets'), { recursive: true });
   fs.mkdirSync(staging, { recursive: true });
   fs.cpSync(path.join(root, 'src'), path.join(staging, 'src'), { recursive: true });
+  for (const name of ['frontend', 'backend']) fs.cpSync(path.join(root, name), path.join(staging, name), { recursive: true, filter: (p) => !['data', 'test', '.env'].includes(path.basename(p)) });
   fs.cpSync(path.join(root, 'assets'), path.join(staging, 'assets'), { recursive: true });
   fs.rmSync(path.join(staging, 'assets', 'notification.mp3'), { force: true });
   fs.copyFileSync(path.join(root, 'package.json'), path.join(staging, 'package.json'));

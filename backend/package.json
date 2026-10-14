@@ -1,0 +1,10 @@
+{
+  "name": "human-dispatch-backend",
+  "version": "0.1.1",
+  "private": true,
+  "scripts": {
+    "dev": "node --watch server.cjs",
+    "start": "node server.cjs",
+    "test": "node --test test/*.test.cjs"
+  }
+}
