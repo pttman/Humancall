@@ -10,6 +10,9 @@
   const emit = (type, payload) => { listeners[type].forEach(fn => fn(payload)); channel?.postMessage({ type, payload }); return true; };
   window.humanDispatch = {
     ...(desktop || {}),
+    getDataDirectory: () => request('storage'),
+    setDataDirectory: directory => request('storage', 'PUT', { directory }),
+    chooseDataDirectory: desktop?.chooseDataDirectory || (async () => window.prompt('输入本机数据保存文件夹的绝对路径')),
     loadState: () => request('state'), saveState: state => request('state', 'PUT', state),
     getDefaultPrompt: async () => (await request('settings/prompts')).defaultPrompt,
     getTonePrompts: async () => (await request('settings/prompts')).tonePrompts,

@@ -8,7 +8,8 @@ const core = require('../core.cjs');
 test('HTTP 数据、备份、模型降级、静态资源和来源限制', async t => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'human-dispatch-test-'));
   core.configureDataDirectory(directory);
-  const server = createServer(); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const storage = require('../storage.cjs').createStorageController({ initialDirectory: directory, configPath: path.join(directory, 'location.txt') });
+  const server = createServer({ storage }); await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
   t.after(async () => { await new Promise(resolve => server.close(resolve)); fs.rmSync(directory, { recursive: true, force: true }); });
   const base = `http://127.0.0.1:${server.address().port}`;
   const get = async route => (await fetch(base + route)).json();
@@ -33,6 +34,11 @@ test('HTTP 数据、备份、模型降级、静态资源和来源限制', async 
   assert.match(await (await fetch(base + '/api.js')).text(), /fetch\('/);
   assert.equal((await fetch(base + '/package.json')).status, 404);
   assert.equal((await fetch(base + '/api/missing')).status, 404);
+  const moved = path.join(directory, 'moved');
+  assert.equal((await send('/api/storage', 'PUT', { directory: moved })).status, 200);
+  assert.equal((await get('/api/storage')).directory, moved);
+  assert.equal((await get('/api/state')).tasks[0].id, 'task-1');
+  assert.equal((await send('/api/storage', 'PUT', { directory })).status, 400);
 });
 test('模型请求使用原任务上下文并解析 JSON', async t => {
   const server = require('node:http').createServer(async (req, res) => {

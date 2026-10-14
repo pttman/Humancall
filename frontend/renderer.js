@@ -522,6 +522,7 @@ ensurePromptSettings();
 function ensureThemeSettings() { if ($('#themeInput')) return; const holder = document.createElement('label'); holder.className = 'theme-setting'; holder.innerHTML = `主题预设<select id="themeInput">${Object.entries(themeLabels).map(([value, label]) => `<option value="${value}">${label}</option>`).join('')}</select><span class="theme-hint">主窗口和监管气泡会同步换肤。</span>`; $('#systemPromptInput').closest('label').after(holder); $('#themeInput').addEventListener('change', () => { applyTheme($('#themeInput').value); }); }
 ensureThemeSettings();
 async function openSettings() {
+  try { const info = await window.humanDispatch.getDataDirectory(); $('#dataDirectoryInput').value = info.directory; $('#changeDataDirectoryButton').disabled = info.configurable === false; } catch (error) { $('#dataDirectoryInput').value = '读取失败'; }
   const s = state.settings;
   defaultTonePrompts = await window.humanDispatch.getTonePrompts();
   const savedPrompts = s.tonePrompts || {};
@@ -567,6 +568,16 @@ $('#settingsForm').addEventListener('submit', async (event) => {
   const selectedTone = $('#toneInput').value;
   Object.assign(state.settings, { baseUrl: $('#baseUrlInput').value.trim(), apiKey: $('#apiKeyInput').value.trim(), model: $('#modelInput').value.trim(), tone: selectedTone, tonePrompts: { ...defaultTonePrompts, ...promptDrafts }, reminderMinutes: Number($('#reminderInput').value) || 30, passiveNudgeMinutes: Math.max(5, Number($('#passiveNudgesInput').value) || 10), passiveNudgesEnabled: $('#passiveNudgesEnabledInput').checked, workStart: $('#workStartInput').value, workEnd: $('#workEndInput').value, notifications: $('#notificationsInput').checked, supportUrl: $('#supportUrlInput').value.trim(), systemPrompt: promptDrafts[selectedTone] || defaultTonePrompts[selectedTone], theme: $('#themeInput').value, themeConfigured: true });
   await save(); closeSettings(); renderAll(); showToast('调度设置已保存，各语气提示词已分别保存');
+});
+$('#changeDataDirectoryButton').addEventListener('click', async () => {
+  const button = $('#changeDataDirectoryButton');
+  try {
+    const directory = await window.humanDispatch.chooseDataDirectory(); if (!directory) return;
+    button.disabled = true; await save();
+    const result = await window.humanDispatch.setDataDirectory(directory);
+    $('#dataDirectoryInput').value = result.directory;
+    $('#settingsStatus').textContent = '数据保存位置已更新，原有数据已保留。';
+  } catch (error) { $('#settingsStatus').textContent = `更改失败：${error.message}`; } finally { button.disabled = false; }
 });
 $('#exportDataButton').addEventListener('click', async () => {
   try {

@@ -1,6 +1,6 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
@@ -30,7 +30,10 @@
       "package.json",
       "!assets/*.mp3",
       "frontend/**/*",
-      "backend/*.cjs"
+      "backend/*.cjs",
+      "!frontend/.env",
+      "!frontend/.env.*",
+      "frontend/.env.example"
     ],
     "extraResources": [
       {

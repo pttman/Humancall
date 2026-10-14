@@ -2,6 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('./core.cjs');
+const { createStorageController } = require('./storage.cjs');
 function loadEnv(file = path.join(__dirname, '.env')) {
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
@@ -18,7 +19,7 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 2 * 1024 * 1024) throw Object.assign(new Error('请求超过 2 MB'), { status: 413 }); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
-function createServer({ serveFrontend = true } = {}) {
+function createServer({ serveFrontend = true, storage } = {}) {
   return http.createServer(async (req, res) => {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
@@ -33,6 +34,12 @@ function createServer({ serveFrontend = true } = {}) {
       const url = new URL(req.url, 'http://localhost');
       const route = `${req.method} ${url.pathname}`;
       if (route === 'GET /api/health') return send(200, { ok: true });
+      if (route === 'GET /api/storage') return send(200, storage ? storage.get() : { directory: '', configurable: false });
+      if (route === 'PUT /api/storage') {
+        if (!storage) return send(403, { error: '此服务未启用数据目录设置' });
+        const value = await body(req);
+        try { return send(200, storage.set(value.directory)); } catch (error) { return send(400, { error: error.message }); }
+      }
       if (route === 'GET /api/state') return send(200, core.readState());
       if (route === 'PUT /api/state') { const value = validateState(await body(req)); return send(200, core.writeState(value)); }
       if (route === 'GET /api/settings/prompts') return send(200, { defaultPrompt: core.DEFAULT_SYSTEM_PROMPT, tonePrompts: core.TONE_PROMPTS });
@@ -65,8 +72,10 @@ function createServer({ serveFrontend = true } = {}) {
 }
 if (require.main === module) {
   loadEnv();
-  if (process.env.DATA_DIR) core.configureDataDirectory(path.resolve(__dirname, process.env.DATA_DIR));
-  const server = createServer();
+  const configPath = path.join(__dirname, 'data-directory.txt');
+  const saved = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8').trim() : '';
+  const storage = createStorageController({ initialDirectory: saved || path.resolve(__dirname, process.env.DATA_DIR || 'data'), configPath });
+  const server = createServer({ storage });
   server.listen(Number(process.env.PORT || 3001), process.env.HOST || '127.0.0.1', () => console.log(`后端已启动：http://${process.env.HOST || '127.0.0.1'}:${server.address().port}`));
   server.on('error', error => { console.error(error.message); process.exitCode = 1; });
 }

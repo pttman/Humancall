@@ -53,4 +53,8 @@ npm test
 
 测试使用临时数据目录与模拟模型接口，覆盖持久化、备份密钥处理、提醒规则、模型上下文、格式校验、来源限制及页面资源，不修改真实用户数据，不消耗模型额度。
 
-运行 npm run test:desktop 可验证实际 Electron 窗口和无 preload 的网页模式，包括界面渲染、HTTP 保存及对话调度。测试使用临时用户目录；如 Windows 缓存文件占用导致目录残留，可在退出后清理系统临时目录中 human-dispatch-ui- 前缀的测试目录。安装包配置已更新，本次未生成发布安装包。
+运行 npm run test:desktop 可验证实际 Electron 窗口和无 preload 的网页模式，包括界面渲染、HTTP 保存及对话调度。测试使用临时用户目录；如 Windows 缓存文件占用导致目录残留，可在退出后清理系统临时目录中 human-dispatch-ui- 前缀的测试目录。安装版和便携版可从 GitHub Release 下载。
+
+## 更改数据保存位置
+
+设置中点击更改保存位置：桌面版打开文件夹选择器，网页模式输入后端机器的绝对路径。现有数据复制到新位置并立即生效，旧文件保留；目标已有状态文件时拒绝覆盖。目录选择持久化，重启沿用。网页版目录记录保存在 backend/data-directory.txt（优先于 DATA_DIR），桌面版使用原用户数据目录的 data-directory.txt。GET /api/storage 读取当前目录，PUT /api/storage 接收 {directory}。

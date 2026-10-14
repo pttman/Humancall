@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopDispatch', {
 
+  chooseDataDirectory: () => ipcRenderer.invoke('storage:choose'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
   notify: (payload) => ipcRenderer.invoke('notification:show', payload),
   showBubble: (payload) => ipcRenderer.invoke('bubble:show', payload),

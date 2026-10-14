@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, scre
 const path = require('path');
 const { configureDataDirectory, readState } = require('../backend/core.cjs');
 const { createServer } = require('../backend/server.cjs');
+const { createStorageController } = require('../backend/storage.cjs');
 let apiServer;
 let frontendUrl;
 const fs = require('fs');
@@ -192,7 +193,12 @@ app.whenReady().then(async () => {
   }
   Menu.setApplicationMenu(null);
   configureDataDirectory(dataDirectory());
-  apiServer = createServer();
+  const storage = createStorageController({ initialDirectory: dataDirectory(), configPath: path.join(app.getPath('userData'), 'data-directory.txt'), encoding: 'utf16le' });
+  apiServer = createServer({ storage });
+  ipcMain.handle('storage:choose', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, { title: '选择数据保存位置', defaultPath: storage.get().directory, properties: ['openDirectory', 'createDirectory'] });
+    return result.canceled ? null : result.filePaths[0];
+  });
   await new Promise((resolve, reject) => { apiServer.once('error', reject); apiServer.listen(0, '127.0.0.1', resolve); });
   frontendUrl = 'http://127.0.0.1:' + apiServer.address().port;
   ipcMain.handle('external:open', async (_, targetUrl) => {
