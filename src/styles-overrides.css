@@ -540,3 +540,78 @@ body::-webkit-scrollbar-thumb:hover {
 .config-reminder-card .modal-header p {
   max-width: 390px;
 }
+
+/* Keep the settings header accessible while only the form scrolls. */
+#settingsModal {
+  align-items: center;
+  overflow: hidden;
+}
+
+#settingsModal .modal-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+#settingsModal .modal-header {
+  flex: 0 0 auto;
+  align-items: flex-start;
+  gap: 16px;
+  padding-bottom: 16px;
+  margin-bottom: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+#closeSettingsButton {
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--panel-2);
+  color: var(--muted);
+  font-size: 22px;
+  transition: background .15s ease, color .15s ease;
+}
+
+#closeSettingsButton:hover,
+#closeSettingsButton:focus-visible {
+  background: var(--line);
+  color: var(--text);
+}
+
+#settingsForm {
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 16px 12px 2px 0;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+#settingsForm::-webkit-scrollbar,
+#settingsForm textarea::-webkit-scrollbar {
+  width: 12px;
+}
+
+#settingsForm::-webkit-scrollbar-track,
+#settingsForm textarea::-webkit-scrollbar-track {
+  background: transparent;
+  margin-block: 8px;
+}
+
+#settingsForm::-webkit-scrollbar-thumb,
+#settingsForm textarea::-webkit-scrollbar-thumb {
+  min-height: 40px;
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--green) 55%, var(--panel));
+  background-clip: padding-box;
+}
+
+#settingsForm::-webkit-scrollbar-thumb:hover,
+#settingsForm textarea::-webkit-scrollbar-thumb:hover {
+  background: var(--green);
+  background-clip: padding-box;
+}

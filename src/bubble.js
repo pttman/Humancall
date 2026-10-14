@@ -57,7 +57,7 @@ function renderCurrent(playSound = false, direction = 0) {
     shell.classList.add(direction > 0 ? 'switch-next' : 'switch-prev');
     window.setTimeout(() => shell.classList.remove('switch-next', 'switch-prev'), 280);
   }
-  document.documentElement.dataset.theme = payload.theme || 'green-command';
+  document.documentElement.dataset.theme = ['pastel-mix', 'midnight-blue', 'paper-focus'].includes(payload.theme) ? payload.theme : 'pastel-mix';
   document.documentElement.dataset.stack = bubbleItems.length > 1 ? 'stacked' : 'single';
   $('#bubbleTitle').textContent = payload.title || '该干活了';
   $('#bubbleBody').textContent = payload.body || '我在等你的汇报。';

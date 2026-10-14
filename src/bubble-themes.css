@@ -1,5 +1,4 @@
 :root[data-theme="midnight-blue"] { --bg: #111c30; --line: #34557b; --text: #edf4ff; --muted: #9eb1ca; --green: #73c8ff; }
-:root[data-theme="alert-red"] { --bg: #2b151d; --line: #6c3542; --text: #fff3f0; --muted: #d29da0; --green: #ffad78; }
 :root[data-theme="paper-focus"] { color-scheme: light; --bg: #fbfaf6; --line: #cfd4d0; --text: #202b2d; --muted: #707b7d; --green: #167d62; }
 :root[data-theme="pastel-mix"] { color-scheme: light; --bg: #fffdf3; --line: #d8dfbd; --text: #303327; --muted: #747866; --green: #719a38; }
 :root[data-theme="paper-focus"] .bubble-shell { background: linear-gradient(145deg, #e3f0e9, var(--bg)); box-shadow: 0 18px 42px rgba(58,63,59,.25); }

@@ -10,8 +10,8 @@ let bubbleLoaded = false;
 let queuedBubbles = [];
 let lastPassiveNudgeAt = 0;
 let passiveTimer;
-const appIconPngPath = path.join(__dirname, 'assets', 'app-icon.png');
-const appIconIcoPath = path.join(__dirname, 'assets', 'app-icon.ico');
+const appIconPngPath = path.join(__dirname, '..', 'assets', 'app-icon.png');
+const appIconIcoPath = path.join(__dirname, '..', 'assets', 'app-icon.ico');
 const appIconPath = process.platform === 'win32' ? appIconIcoPath : appIconPngPath;
 const TONE_GUIDANCE = {
   '温柔陪跑': '温暖、鼓励、像可靠的陪跑伙伴；可以提醒，但不要制造压力。',
@@ -49,7 +49,7 @@ const defaultState = {
     supportUrl: '',
     systemPrompt: TONE_PROMPTS['老板模式'],
     tonePrompts: TONE_PROMPTS,
-    theme: 'alert-red',
+    theme: 'pastel-mix',
     themeConfigured: true
   },
   tasks: [],
@@ -68,10 +68,11 @@ function readState() {
     const raw = fs.readFileSync(statePath(), 'utf8');
     const parsed = JSON.parse(raw);
     if (parsed.settings && !Object.prototype.hasOwnProperty.call(parsed.settings, 'themeConfigured')) {
-      parsed.settings.theme = 'alert-red';
+      parsed.settings.theme = 'pastel-mix';
       parsed.settings.themeConfigured = true;
     }
     const settings = { ...defaultState.settings, ...(parsed.settings || {}) };
+    if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(settings.theme)) settings.theme = 'pastel-mix';
     const savedTonePrompts = parsed.settings?.tonePrompts || {};
     if (!parsed.settings?.tonePrompts && parsed.settings?.systemPrompt && !String(parsed.settings.systemPrompt).includes(LEGACY_DEFAULT_PROMPT_MARKER)) savedTonePrompts[settings.tone] = parsed.settings.systemPrompt;
     settings.tonePrompts = { ...TONE_PROMPTS, ...savedTonePrompts };
@@ -93,6 +94,7 @@ function normalizeImportedState(parsed, currentState) {
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders)) throw new Error('备份文件格式不正确');
   const imported = { ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } };
   imported.settings.apiKey = currentState?.settings?.apiKey || imported.settings.apiKey || '';
+  if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(imported.settings.theme)) imported.settings.theme = 'pastel-mix';
   imported.settings.tonePrompts = { ...TONE_PROMPTS, ...(parsed.settings?.tonePrompts || {}) };
   imported.settings.systemPrompt = imported.settings.tonePrompts[imported.settings.tone] || imported.settings.systemPrompt || TONE_PROMPTS[imported.settings.tone] || DEFAULT_SYSTEM_PROMPT;
   return imported;
@@ -174,7 +176,7 @@ function showBubble(payload) {
   if (!bubbleWindow) return;
   if (!bubbleLoaded) { queuedBubbles.push(payload); return; }
   const currentState = readState();
-  payload = { ...payload, bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'alert-red' };
+  payload = { ...payload, bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'pastel-mix' };
   positionBubble();
   bubbleWindow.webContents.send('bubble:show', payload);
   bubbleWindow.showInactive();
@@ -187,7 +189,7 @@ function hideBubble() {
 
 function createTray() {
   const appIcon = nativeImage.createFromPath(appIconPngPath);
-  tray = new Tray(appIcon.isEmpty() ? nativeImage.createEmpty() : appIcon);
+  tray = new Tray(appIcon.isEmpty() ? nativeImage.createEmpty() : appIcon.resize({ width: 32, height: 32 }));
   tray.setToolTip('人类调度');
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开调度窗', click: () => { mainWindow.show(); mainWindow.focus(); } },

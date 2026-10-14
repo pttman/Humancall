@@ -12,19 +12,6 @@
   --blue: #73c8ff;
 }
 
-:root[data-theme="alert-red"] {
-  --bg: #190f13;
-  --panel: #25151b;
-  --panel-2: #321b22;
-  --line: #59313b;
-  --text: #fff3f0;
-  --muted: #bd9698;
-  --green: #ffad78;
-  --green-2: #e87858;
-  --orange: #ffbd5c;
-  --red: #ff6868;
-  --blue: #ffad78;
-}
 
 :root[data-theme="paper-focus"] {
   color-scheme: light;
@@ -57,7 +44,6 @@
 }
 
 :root[data-theme="midnight-blue"] body { background: radial-gradient(circle at 15% 0%, #1b2e4d 0, transparent 34%), var(--bg); }
-:root[data-theme="alert-red"] body { background: radial-gradient(circle at 15% 0%, #4a1d27 0, transparent 34%), var(--bg); }
 :root[data-theme="paper-focus"] body { background: radial-gradient(circle at 15% 0%, #ffffff 0, transparent 34%), var(--bg); }
 :root[data-theme="pastel-mix"] body { background: radial-gradient(circle at 8% 0%, #fff4b8 0, transparent 34%), radial-gradient(circle at 100% 10%, #ffdce4 0, transparent 30%), var(--bg); }
 
@@ -133,10 +119,3 @@
 :root[data-theme="midnight-blue"] .command-card { background: linear-gradient(135deg, #172d4d, #121b2d 65%); }
 :root[data-theme="midnight-blue"] .bubble { background: #1b2a43; border-color: #34557b; }
 :root[data-theme="midnight-blue"] .message.user .bubble { background: #163b55; border-color: #2b6b91; }
-
-:root[data-theme="alert-red"] .command-card,
-:root[data-theme="alert-red"] .chat-card,
-:root[data-theme="alert-red"] .panel { background: rgba(37,21,27,.95); }
-:root[data-theme="alert-red"] .command-card { background: linear-gradient(135deg, #4a2028, #25151b 65%); }
-:root[data-theme="alert-red"] .bubble { background: #3b2029; border-color: #6c3542; }
-:root[data-theme="alert-red"] .message.user .bubble { background: #51252c; border-color: #8d4047; }

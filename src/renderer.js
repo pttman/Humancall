@@ -14,7 +14,7 @@ const now = () => new Date().toISOString();
 const formatDate = (value) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const statusText = { inbox: '收件箱', planned: '待执行', active: '执行中', blocked: '阻塞', waiting: '等待中', completed: '已完成', cancelled: '已取消' };
-const themeLabels = { 'green-command': '深海绿 · 调度默认', 'midnight-blue': '午夜蓝 · 科技冷静', 'alert-red': '警戒红 · 高压提醒', 'paper-focus': '纸张专注 · 浅色工作台', 'pastel-mix': '黄绿粉 · 混合浅色' };
+const themeLabels = { 'pastel-mix': '黄绿粉 · 默认主题', 'midnight-blue': '午夜蓝 · 科技冷静', 'paper-focus': '纸张专注 · 浅色工作台' };
 
 async function save() { await window.humanDispatch.saveState(state); }
 
@@ -206,7 +206,7 @@ function renderReminders() {
   }));
 }
 
-function applyTheme(theme) { const selected = themeLabels[theme] ? theme : 'alert-red'; document.documentElement.dataset.theme = selected; }
+function applyTheme(theme) { const selected = themeLabels[theme] ? theme : 'pastel-mix'; document.documentElement.dataset.theme = selected; }
 function renderAll() { refreshParentStatuses(); applyTheme(state.settings.theme); renderMessages(); renderTasks(); renderCurrent(); renderReminders(); $('#toneLabel').textContent = state.settings.tone || '老板模式'; $('#connectionBadge').textContent = state.settings.apiKey ? `${state.settings.model || '已连接'}` : '本地模式'; $('#connectionBadge').classList.toggle('muted', !state.settings.apiKey); }
 
 function updateTask(taskId, patch) { const task = state.tasks.find((item) => item.id === taskId); if (!task) return; const safePatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)); Object.assign(task, safePatch, { updatedAt: now() }); if (patch.status === 'completed') task.completedAt = now(); }
@@ -540,14 +540,14 @@ async function openSettings() {
   $('#workEndInput').value = s.workEnd || '18:00';
   $('#notificationsInput').checked = s.notifications !== false;
   $('#supportUrlInput').value = s.supportUrl || '';
-  $('#themeInput').value = themeLabels[s.theme] ? s.theme : 'alert-red';
+  $('#themeInput').value = themeLabels[s.theme] ? s.theme : 'pastel-mix';
   applyTheme($('#themeInput').value);
   $('#settingsStatus').textContent = '';
   $('#settingsModal').classList.remove('hidden');
 }
 function closeSettings() { $('#settingsModal').classList.add('hidden'); }
 
-$('#settingsButton').addEventListener('click', openSettings); $('#closeSettingsButton').addEventListener('click', closeSettings); $('.modal-backdrop').addEventListener('click', closeSettings);
+$('#settingsButton').addEventListener('click', openSettings); $('#closeSettingsButton').addEventListener('click', closeSettings); $('#settingsModal .modal-backdrop').addEventListener('click', closeSettings);
 function hasModelConfig() {
   return Boolean(String(state.settings.baseUrl || '').trim() && String(state.settings.apiKey || '').trim() && String(state.settings.model || '').trim());
 }
