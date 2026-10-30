@@ -18,6 +18,7 @@
     getTonePrompts: async () => (await request('settings/prompts')).tonePrompts,
     searchOnlineStickers: query=>request('stickers/search','POST',{query}),
     checkIn: payload => request('ai/check-in', 'POST', payload),
+    considerMoment: () => request('ai/moments','POST',{}),
     onSupervisionRequest: desktop?.onSupervisionRequest || (()=>{}),
     onBubblePrune: desktop?.onBubblePrune || (fn=>listeners.prune.push(fn)),
     onIdentityUpdate: desktop?.onIdentityUpdate || (fn=>listeners.identity.push(fn)),

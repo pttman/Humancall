@@ -1,4 +1,7 @@
 const chatProfile=require('../frontend/chat-profile.js');
+const companion=require('../frontend/companion.js');
+const friends=require('../frontend/friends.js');
+const recordBook=require('../frontend/record-book.js');
 const conversationState=require('../frontend/conversation-state.js');
 const modelPresets=require('../frontend/model-presets.js');
 const taskSchedule=require('../frontend/task-schedule.js');
@@ -12,6 +15,7 @@ const TONE_GUIDANCE = {
   '严格教练': '直接、明确、有节奏地追踪结果；指出拖延但保持尊重。',
   '老板模式': '有权威感、命令式、少废话；始终给出明确的下一步。',
   '高压调度': '紧迫、强硬、连续追问；不得辱骂、威胁或鼓励危险过劳。',
+  '松弛损友': '像嘴贫但靠谱的朋友，自然短句、轻巧冷幽默，先接话再做事，不把闲聊变成督促。',
   '角色扮演模式': '按用户自定义角色提示词表演；仍须遵守安全边界并保持可执行。'
 };
 const BASE_SYSTEM_PROMPT = `你是“人类调度”，负责帮助用户收集工作、拆解任务、安排下一步并持续追踪结果。
@@ -22,10 +26,12 @@ const BASE_SYSTEM_PROMPT = `你是“人类调度”，负责帮助用户收集�
 不得进行人身攻击、身份歧视、现实伤害威胁，也不要鼓励危险过劳。`;
 const DEFAULT_SYSTEM_PROMPT = `${BASE_SYSTEM_PROMPT}\n语气要求：${TONE_GUIDANCE['老板模式']}`;
 const TONE_PROMPTS = Object.fromEntries(Object.entries(TONE_GUIDANCE).map(([tone, guidance]) => [tone, `${BASE_SYSTEM_PROMPT}\n当前角色：${tone}。\n语气要求：${guidance}`]));
+TONE_PROMPTS['松弛损友']=friends.LUYE_PROMPT;
 const LEGACY_DEFAULT_PROMPT_MARKER = '一个强势、直接、像老板一样管理用户工作的 AI 调度者';
 const defaultState = {
   settings: {
     ...chatProfile.defaults,
+    ...companion.defaults,
     provider: 'OpenAI Compatible',
     providerId: 'deepseek',
     baseUrl: 'https://api.deepseek.com',
@@ -51,6 +57,8 @@ const defaultState = {
   reminders: [],
   projects: [{ id: 'default', name: '默认项目', color: '#78e3b1' }],
   messages: [],
+  moments: [],
+  momentActivity: {},
   supervisionEvents: []
 };
 
@@ -73,15 +81,18 @@ function readState() {
     if (!parsed.settings?.tonePrompts && parsed.settings?.systemPrompt && !String(parsed.settings.systemPrompt).includes(LEGACY_DEFAULT_PROMPT_MARKER)) savedTonePrompts[settings.tone] = parsed.settings.systemPrompt;
     settings.tonePrompts = { ...TONE_PROMPTS, ...savedTonePrompts };
     settings.systemPrompt = settings.tonePrompts[settings.tone] || settings.systemPrompt || DEFAULT_SYSTEM_PROMPT;
-    const state={ ...defaultState, ...parsed, settings };conversationState.reconcile(state);return state;
+    const state={ ...defaultState, ...parsed, settings };companion.normalize(state);recordBook.normalize(state);conversationState.reconcile(state);friends.normalize(state);return state;
   } catch {
-    return structuredClone(defaultState);
+    return friends.normalize(structuredClone(defaultState));
   }
 }
 
 function writeState(state) {
   chatProfile.normalize(state.settings);
+  companion.normalize(state);
+  recordBook.normalize(state);
   conversationState.reconcile(state);
+  friends.normalize(state);
   const target = statePath();
   fs.mkdirSync(path.dirname(target), { recursive: true });
   const temporary = target + '.' + process.pid + '.tmp';
@@ -104,7 +115,10 @@ function normalizeImportedState(parsed, currentState) {
   imported.settings.tonePrompts = { ...TONE_PROMPTS, ...(parsed.settings?.tonePrompts || {}) };
   imported.settings.systemPrompt = imported.settings.tonePrompts[imported.settings.tone] || imported.settings.systemPrompt || TONE_PROMPTS[imported.settings.tone] || DEFAULT_SYSTEM_PROMPT;
   chatProfile.normalize(imported.settings);
+  companion.normalize(imported);
+  recordBook.normalize(imported);
   conversationState.reconcile(imported);
+  friends.normalize(imported);
   return imported;
 }
 
@@ -135,7 +149,7 @@ async function callModel({ settings, messages, tasks, reminders }) {
     id: reminder.id, title: reminder.title, nextAt: reminder.nextAt, repeat: reminder.repeat, enabled: reminder.enabled
   }));
   const selectedPrompt = settings.tonePrompts?.[settings.tone] || settings.systemPrompt || TONE_PROMPTS[settings.tone] || DEFAULT_SYSTEM_PROMPT;
-  const system = `${selectedPrompt}\n\n当前监督语气档位：${settings.tone}。${TONE_GUIDANCE[settings.tone] || ''}\n` +
+  const system = `${selectedPrompt}\n${companion.prompt(settings)}\n当前监督语气档位：${settings.tone}。${TONE_GUIDANCE[settings.tone] || ''}\n` +
     '你要把用户的自然语言变成可执行的工作管理动作。提醒和任务是两种不同对象：提醒用于某个时间点通知用户，任务用于持续督办。多个交付结果请使用总任务和子任务：先创建总任务，再让子任务用 parentTitle 指向总任务标题；总任务可设置 isContainer=true。\n' +
     '只返回严格 JSON，不要 Markdown。格式：' +
     '{"reply":"给用户的中文回复","actions":[{"type":"create_task|update_task|complete_task|block_task|postpone_task|snooze_task|delete_task|create_project|create_reminder|update_reminder|delete_reminder|clear_all_tasks|none","taskId":"可选","reminderId":"可选","title":"可选","description":"可选","parentId":"可选","parentTitle":"可选","isContainer":false,"dueAt":"ISO时间或空","nextAt":"ISO时间或空","repeat":"none|daily|weekly","weekday":0,"estimatedMinutes":30,"priority":"low|normal|high|urgent","status":"可选","projectName":"可选","enabled":true}],"followUpMinutes":数字或null}\n' +

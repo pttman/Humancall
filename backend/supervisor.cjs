@@ -40,4 +40,4 @@ function createSupervisor({ readState, agent = runAgent, clock = () => new Date(
     } finally {busy=false;}
   };
 }
-module.exports={createSupervisor,settingsFor,snapshot};
+module.exports={createSupervisor,settingsFor,snapshot,withinWorkHours};

@@ -1,7 +1,9 @@
 const conversationState=require('../frontend/conversation-state.js');
 const taskSchedule=require('../frontend/task-schedule.js');
+const recordBook=require('../frontend/record-book.js');
 const { randomUUID } = require('node:crypto');
 function executeActions(state, actions, input = '') {
+const recordedBefore=recordBook.capture(state);
 const uid = prefix => prefix + '_' + randomUUID();
 const now = () => new Date().toISOString();
 function sortTasks(tasks) {
@@ -88,6 +90,6 @@ function normalizeTaskHierarchy(actions = [], input = '') {
   });
 }
 const normalized = normalizeTaskHierarchy(actions, input);
-applyActions(normalized); refreshParentStatuses(); conversationState.reconcile(state);return normalized;
+applyActions(normalized); refreshParentStatuses(); conversationState.reconcile(state);recordBook.attribute(state,recordedBefore,state.activeFriendId||state.settings?.assistantFriendId||'zhixu');return normalized;
 }
 module.exports = { executeActions };

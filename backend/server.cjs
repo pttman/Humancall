@@ -4,6 +4,7 @@ const path = require('node:path');
 const core = require('./core.cjs');
 const { runAgent, fingerprint } = require('./agent.cjs');
 const { createSupervisor } = require('./supervisor.cjs');
+const { createMoments } = require('./moments.cjs');
 const {searchOnlineStickers}=require('./online-stickers.cjs');
 const { createStorageController } = require('./storage.cjs');
 function loadEnv(file = path.join(__dirname, '.env')) {
@@ -19,12 +20,13 @@ function validateState(value) {
 }
 async function body(req) {
   let size = 0; const chunks = [];
-  for await (const chunk of req) { size += chunk.length; if (size > 2 * 1024 * 1024) throw Object.assign(new Error('请求超过 2 MB'), { status: 413 }); chunks.push(chunk); }
+  for await (const chunk of req) { size += chunk.length; if (size > 8 * 1024 * 1024) throw Object.assign(new Error('请求超过 8 MB'), { status: 413 }); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
 function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
   const saveState=value=>{const saved=core.writeState(value);onStateSaved?.(saved);return saved;};
   const checkIn = createSupervisor({readState:core.readState});
+  const considerMoment = createMoments({readState:core.readState});
   return http.createServer(async (req, res) => {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
@@ -38,6 +40,7 @@ function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       const url = new URL(req.url, 'http://localhost');
       const route = `${req.method} ${url.pathname}`;
+      if (route === 'POST /api/ai/moments') { await body(req); return send(200,await considerMoment()); }
       if (route === 'POST /api/ai/check-in') { const payload=await body(req); return send(200, await checkIn({taskId:payload.taskId,reason:payload.reason,force:payload.force === true})); }
       if (route === 'POST /api/stickers/search') {
         const payload=await body(req);const settings=core.readState().settings;

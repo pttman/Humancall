@@ -4,6 +4,8 @@ let selectedTaskId = null;
 let currentTaskPreviewId = null;
 let chatSearchQuery = '';
 let chatClearing=false;
+let friendSwitching=false;
+let stateSaveQueue=Promise.resolve();
 
 let toastTimer;
 let pendingDeleteKey = '';
@@ -20,7 +22,7 @@ const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({ 
 const statusText = { inbox: '收件箱', planned: '待执行', active: '执行中', blocked: '阻塞', waiting: '等待中', completed: '已完成', cancelled: '已取消' };
 const themeLabels = { 'pastel-mix': '微信浅色 · 默认主题', 'midnight-blue': '微信深色 · 夜间主题', 'paper-focus': '纸张专注 · 浅色工作台' };
 
-async function save() { window.conversationState.reconcile(state);await window.humanDispatch.saveState(state); }
+async function save() { window.conversationState.reconcile(state);window.friends.normalize(state);const snapshot=structuredClone(state);const request=stateSaveQueue.catch(()=>{}).then(()=>window.humanDispatch.saveState(snapshot));stateSaveQueue=request;await request;window.companionUI?.schedule(); }
 
 function showToast(message) {
   const el = $('#toast'); el.textContent = message; el.classList.remove('hidden'); clearTimeout(toastTimer);
@@ -49,7 +51,7 @@ function highlightChat(text) {
   while ((found=lower.indexOf(query,cursor))>=0) {html+=escapeHtml(value.slice(cursor,found))+'<mark>'+escapeHtml(value.slice(found,found+query.length))+'</mark>';cursor=found+query.length;}
   return html+escapeHtml(value.slice(cursor));
 }
-function syncComposer() { $('#chatInput').disabled=agentBusy;$('#sendMessageButton').disabled=agentBusy||chatClearing||!$('#chatInput').value.trim();$('#clearChatButton').disabled=agentBusy||chatClearing; }
+function syncComposer() { $('#chatInput').disabled=agentBusy||friendSwitching;$('#sendMessageButton').disabled=agentBusy||friendSwitching||chatClearing||!$('#chatInput').value.trim();$('#clearChatButton').disabled=agentBusy||friendSwitching||chatClearing; }
 function renderMessages() {
   const container = $('#chatMessages');
   const identity=renderIdentity();
@@ -58,9 +60,9 @@ function renderMessages() {
   $('#sessionPreview').textContent=latest?.kind==='sticker'?'[表情包] '+(window.resolveSticker(latest.sticker)?.label||''):latest?.content || '今天有什么安排？';
   $('#sessionTime').textContent=latest?.createdAt ? formatChatTimestamp(latest.createdAt).split(' ').at(-1) : '';
   $('#sidebarTaskCount').textContent=state.tasks.filter(t=>!t.isContainer && !['completed','cancelled'].includes(t.status)).length;
-  const matches=state.messages.map((message,index)=>({message,index})).filter(({message})=>!chatSearchQuery || String(message.content || (message.kind==='sticker'?window.resolveSticker(message.sticker)?.label:'') || '').toLocaleLowerCase().includes(chatSearchQuery.toLocaleLowerCase()));
+  const matches=state.messages.map((message,index)=>({message,index})).filter(({message})=>chatSearchQuery?String(message.content || (message.kind==='sticker'?window.resolveSticker(message.sticker)?.label:'') || '').toLocaleLowerCase().includes(chatSearchQuery.toLocaleLowerCase()):!window.recordBook.past(message.createdAt));
   $('#chatContactStatus').textContent=chatSearchQuery ? '找到 '+matches.length+' 条相关消息' : '任务安排 · 日程提醒 · 进度跟进';
-  if (!matches.length) {container.innerHTML='<div class="chat-search-empty">'+(chatSearchQuery?'没有找到相关消息，换个关键词试试。':'今天有什么安排？从一条消息开始吧。')+'</div>';syncComposer();return;}
+  if (!matches.length) {container.innerHTML='<div class="chat-search-empty">'+(chatSearchQuery?'没有找到相关消息，换个关键词试试。':'今天有什么安排？从一条消息开始吧。')+'</div>';syncComposer();window.friendsUI?.render();return;}
   let previousTime=0;
   container.innerHTML=matches.map(({message,index})=>{
     const user=message.role==='user',time=Date.parse(message.createdAt), showTime=Number.isFinite(time) && (!previousTime || time-previousTime>=300000 || chatSearchQuery);
@@ -68,9 +70,10 @@ function renderMessages() {
     const trace=message.execution ? '<details class="execution-trace"><summary>查看处理记录</summary><ol>'+(message.execution.plan || []).map(step=>'<li>'+escapeHtml(step)+'</li>').join('')+'</ol>'+(message.execution.trace || []).map(step=>'<small>'+(step.status==='error'?'需修正':'完成')+' · '+escapeHtml(step.summary)+'</small>').join('')+'</details>' : '';
     const stickerOnly=message.kind==='sticker'&&window.resolveSticker(message.sticker);
     const stickerHost=window.resolveSticker(message.sticker)?'<div class="message-sticker-host" data-sticker-index="'+index+'"></div>':'';
-    const body=stickerOnly?stickerHost:'<div class="bubble">'+highlightChat(message.content)+trace+'</div>'+stickerHost;
+    const momentImage=message.kind==='moment'?window.momentMedia.get(state.moments?.find(m=>m.id===message.momentId)?.image):null;
+    const body=message.kind==='moment'?'<button type="button" class="moment-message-card" data-open-moments="'+escapeHtml(message.momentId||'')+'"><span>◉ '+escapeHtml(identity.assistantName)+'发了一条朋友圈</span><p>'+highlightChat(message.content)+'</p>'+(momentImage?'<img class="moment-message-thumb" src="'+escapeHtml(momentImage.url)+'" alt="配图" referrerpolicy="no-referrer" />':'')+'<small>看看这条动态 ›</small></button>':stickerOnly?stickerHost:'<div class="bubble">'+highlightChat(message.content)+trace+'</div>'+stickerHost;
     const tools=stickerOnly?'':'<div class="message-tools">'+(message.meta?'<span class="message-meta">'+escapeHtml(message.meta)+'</span>':'')+'<button type="button" class="copy-message" data-copy-message="'+index+'" aria-label="复制这条消息">复制</button></div>';
-    return (showTime?'<div class="message-time">'+escapeHtml(formatChatTimestamp(message.createdAt))+'</div>':'')+'<div class="message '+(user?'user':'assistant')+(stickerOnly?' sticker-message':'')+'" data-message-id="'+escapeHtml(message.id)+'"><div class="avatar" aria-hidden="true" title="'+escapeHtml(user?identity.userName:identity.assistantName)+'"><img class="avatar-image" data-avatar-role="'+(user?'user':'assistant')+'" src="'+escapeHtml(user?identity.userAvatar:identity.assistantAvatar)+'" alt="" /></div><div class="message-content"><div class="sender-name">'+escapeHtml(identity.assistantName)+'<span class="sr-only">：</span></div>'+body+tools+'</div></div>';
+    return (showTime?'<div class="message-time">'+escapeHtml(formatChatTimestamp(message.createdAt))+'</div>':'')+'<div class="message '+(user?'user':'assistant')+(stickerOnly?' sticker-message':'')+'" data-message-id="'+escapeHtml(message.id)+'">'+(user?'<button type="button" class="avatar companion-avatar-button" data-open-user aria-label="查看我的资料" title="':'<button type="button" class="avatar companion-avatar-button" data-open-companion aria-label="查看人物资料" title="')+escapeHtml(user?identity.userName:identity.assistantName)+'"><img class="avatar-image" data-avatar-role="'+(user?'user':'assistant')+'" src="'+escapeHtml(user?identity.userAvatar:identity.assistantAvatar)+'" alt="" />'+'</button>'+'<div class="message-content"><div class="sender-name">'+escapeHtml(user?identity.userName:identity.assistantName)+'<span class="sr-only">：</span></div>'+body+tools+'</div></div>';
 
   }).join('');
   window.stickerUI.mount(container,state.messages);
@@ -78,6 +81,7 @@ function renderMessages() {
   else if (wasNearBottom || latest?.role==='user') container.scrollTop=container.scrollHeight;
   else container.scrollTop=previousScroll;
   syncComposer();
+  window.friendsUI?.render();
 }
 
 function sortTasks(tasks) {
@@ -165,7 +169,7 @@ function renderTasks() {
 
   const tasks = sortTasks(state.tasks);
   const query = taskView.query.trim().toLowerCase();
-  const visibleTasks = tasks.filter((task) => (taskView.status === 'all' || task.status === taskView.status) && (!taskView.completedCollapsed || task.status !== 'completed') && (!query || `${task.title} ${task.description || ''} ${task.projectName || ''}`.toLowerCase().includes(query)));
+  const visibleTasks = tasks.filter((task) => !window.recordBook.hiddenTask(task) && (taskView.status === 'all' || task.status === taskView.status) && (!taskView.completedCollapsed || task.status !== 'completed') && (!query || `${task.title} ${task.description || ''} ${task.projectName || ''}`.toLowerCase().includes(query)));
   $('#taskCount').textContent = tasks.filter((task) => task.status !== 'completed' && task.status !== 'cancelled').length;
   const statusOptions = Object.entries(statusText).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
   const displayTasks = hierarchicalTasks(visibleTasks);
@@ -185,7 +189,7 @@ function renderTasks() {
       window.taskSchedule.deferredAt(task) ? '静默至 ' + formatDate(window.taskSchedule.deferredAt(task)) : '',
       !['meeting','appointment'].includes(task.kind) && task.estimatedMinutes ? '预计 ' + task.estimatedMinutes + ' 分钟' : ''
     ].filter(Boolean);
-    return `<div class="task-item${subtaskClass}${parentClass}" data-task-id="${escapeHtml(task.id)}"><span class="task-dot ${task.status}"></span><div class="task-content"><div class="task-title-line">${collapseButton}<button type="button" class="task-title ${task.status === 'completed' ? 'completed' : ''}" data-edit-task-id="${escapeHtml(task.id)}" title="${escapeHtml(task.title)}" aria-label="编辑任务：${escapeHtml(task.title)}">${task.isContainer ? '<span class="task-kind-label">总任务</span>' : ''}${escapeHtml(task.title)}</button></div>${task.description ? `<div class="task-description" title="${escapeHtml(task.description)}">${escapeHtml(task.description)}</div>` : ''}${details.length ? `<div class="task-sub">${details.map(detail=>`<span class="task-detail">${escapeHtml(detail)}</span>`).join('')}</div>` : ''}</div><div class="task-row-actions"><select class="task-status-select" data-task-status-id="${escapeHtml(task.id)}" aria-label="调整任务状态：${escapeHtml(task.title)}" ${task.isContainer ? 'disabled title="总任务状态由子任务汇总"' : ''}>${statusOptions.replace(`value="${task.status}"`, `value="${task.status}" selected`)}</select><button type="button" class="task-edit" data-edit-task-id="${escapeHtml(task.id)}">编辑任务</button><button type="button" class="task-delete${deletePending ? ' is-pending' : ''}" data-delete-task-id="${escapeHtml(task.id)}" aria-label="${deletePending ? '确认删除任务' : '删除任务'}" title="${task.isContainer ? '删除总任务及其子任务' : '删除任务'}">${deletePending ? '确认删除' : '删除'}</button></div></div>`;
+    return `<div class="task-item${subtaskClass}${parentClass}" data-task-id="${escapeHtml(task.id)}"><span class="task-dot ${task.status}"></span><div class="task-content"><div class="task-title-line">${collapseButton}<button type="button" class="task-title ${task.status === 'completed' ? 'completed' : ''}" data-edit-task-id="${escapeHtml(task.id)}" title="${escapeHtml(task.title)}" aria-label="编辑任务：${escapeHtml(task.title)}">${task.isContainer ? '<span class="task-kind-label">总任务</span>' : ''}${escapeHtml(task.title)}</button></div>${task.description ? `<div class="task-description" title="${escapeHtml(task.description)}">${escapeHtml(task.description)}</div>` : ''}${details.length ? `<div class="task-sub">${details.map(detail=>`<span class="task-detail">${escapeHtml(detail)}</span>`).join('')}</div>` : ''}<div class="task-provenance">${window.recordsUI?.credit(task)||''}</div></div><div class="task-row-actions"><select class="task-status-select" data-task-status-id="${escapeHtml(task.id)}" aria-label="调整任务状态：${escapeHtml(task.title)}" ${task.isContainer ? 'disabled title="总任务状态由子任务汇总"' : ''}>${statusOptions.replace(`value="${task.status}"`, `value="${task.status}" selected`)}</select><button type="button" class="task-edit" data-edit-task-id="${escapeHtml(task.id)}">编辑任务</button><button type="button" class="task-delete${deletePending ? ' is-pending' : ''}" data-delete-task-id="${escapeHtml(task.id)}" aria-label="${deletePending ? '确认删除任务' : '删除任务'}" title="${task.isContainer ? '删除总任务及其子任务' : '删除任务'}">${deletePending ? '确认删除' : '删除'}</button></div></div>`;
 
   }).join('') : `<div class="empty">${tasks.length ? '没有符合筛选条件的任务' : '还没有任务'}</div>`;
   document.querySelectorAll('[data-task-id]').forEach((item) => item.addEventListener('click', () => { selectedTaskId = item.dataset.taskId; renderAll(); }));
@@ -212,9 +216,9 @@ function renderTasks() {
     await requestDelete('task', button.dataset.deleteTaskId);
   }));
   $('#toggleCompletedButton').textContent = taskView.completedCollapsed ? '显示已完成' : '收起已完成';
-  const done = state.tasks.filter((task) => task.status === 'completed').length;
-  const pending = state.tasks.filter((task) => !['completed', 'cancelled'].includes(task.status)).length;
-  const overdue = state.tasks.filter((task) => task.dueAt && new Date(task.dueAt) < new Date() && !['completed', 'cancelled'].includes(task.status)).length;
+  const done = state.tasks.filter((task) => !task.isContainer && task.status === 'completed' && window.recordBook.today(task.completedAt||task.updatedAt)).length;
+  const pending = state.tasks.filter((task) => !task.isContainer && !['completed', 'cancelled'].includes(task.status)).length;
+  const overdue = state.tasks.filter((task) => !task.isContainer && task.dueAt && task.dueAtIsDeadline!==false && new Date(task.dueAt) < new Date() && !['completed', 'cancelled'].includes(task.status)).length;
   $('#doneCount').textContent = done; $('#pendingCount').textContent = pending; $('#overdueCount').textContent = overdue;
 }
 
@@ -250,18 +254,18 @@ function reminderRepeatText(reminder) {
 }
 
 function renderReminders() {
-  const reminders = (state.reminders || []).sort((a, b) => String(a.nextAt || '').localeCompare(String(b.nextAt || '')));
-  $('#reminderCount').textContent = reminders.filter((reminder) => reminder.enabled !== false).length;
-  $('#reminderList').innerHTML = reminders.length ? reminders.map((reminder) => { const deletePending = pendingDeleteKey === `reminder:${reminder.id}`; return `<div class="reminder-item ${reminder.enabled === false ? 'is-disabled' : ''}"><span class="reminder-dot"></span><div><div class="reminder-title">${escapeHtml(reminder.title)}</div><div class="task-sub">${escapeHtml(formatDate(reminder.nextAt))} · ${reminderRepeatText(reminder)}</div></div><div class="reminder-controls"><select class="reminder-control" data-reminder-status-id="${escapeHtml(reminder.id)}" aria-label="调整提醒状态"><option value="enabled" ${reminder.enabled !== false ? 'selected' : ''}>启用</option><option value="disabled" ${reminder.enabled === false ? 'selected' : ''}>停用</option></select><select class="reminder-control" data-reminder-repeat-id="${escapeHtml(reminder.id)}" aria-label="调整重复频率"><option value="none" ${reminder.repeat === 'none' ? 'selected' : ''}>一次性</option><option value="daily" ${reminder.repeat === 'daily' ? 'selected' : ''}>每天</option><option value="weekly" ${reminder.repeat === 'weekly' ? 'selected' : ''}>每周</option></select><button class="reminder-delete${deletePending ? ' is-pending' : ''}" data-delete-reminder-id="${escapeHtml(reminder.id)}" aria-label="${deletePending ? '确认删除提醒' : '删除提醒'}" title="删除提醒">${deletePending ? '确认' : '删'}</button></div></div>`; }).join('') : '<div class="empty">还没有提醒</div>';
+  const reminders = (state.reminders || []).filter(item=>!window.recordBook.hiddenReminder(item)).sort((a, b) => String(a.nextAt || '').localeCompare(String(b.nextAt || '')));
+  $('#reminderCount').textContent = state.reminders.filter((reminder) => reminder.enabled !== false).length;
+  $('#reminderList').innerHTML = reminders.length ? reminders.map((reminder) => { const deletePending = pendingDeleteKey === `reminder:${reminder.id}`; return `<div class="reminder-item ${reminder.enabled === false ? 'is-disabled' : ''}"><span class="reminder-dot"></span><div class="reminder-main"><div class="reminder-title">${escapeHtml(reminder.title)}</div><div class="reminder-time">${escapeHtml(formatDate(reminder.nextAt)) || '时间待设置'}</div><div class="task-provenance">${window.recordsUI?.credit(reminder)||''}</div></div><div class="reminder-controls"><label class="reminder-field"><span>状态</span><select class="reminder-control" data-reminder-status-id="${escapeHtml(reminder.id)}" aria-label="调整提醒状态：${escapeHtml(reminder.title)}"><option value="enabled" ${reminder.enabled !== false ? 'selected' : ''}>启用</option><option value="disabled" ${reminder.enabled === false ? 'selected' : ''}>停用</option></select></label><label class="reminder-field"><span>频率</span><select class="reminder-control" data-reminder-repeat-id="${escapeHtml(reminder.id)}" aria-label="调整重复频率：${escapeHtml(reminder.title)}"><option value="none" ${reminder.repeat === 'none' ? 'selected' : ''}>一次性</option><option value="daily" ${reminder.repeat === 'daily' ? 'selected' : ''}>每天</option><option value="weekly" ${reminder.repeat === 'weekly' ? 'selected' : ''}>每周</option></select></label><button type="button" class="reminder-delete${deletePending ? ' is-pending' : ''}" data-delete-reminder-id="${escapeHtml(reminder.id)}" aria-label="${deletePending ? '确认删除提醒' : '删除提醒'}" title="删除提醒">${deletePending ? '确认删除' : '删除'}</button></div></div>`; }).join('') : '<div class="empty">还没有提醒</div>';
   document.querySelectorAll('[data-reminder-status-id]').forEach((select) => select.addEventListener('change', async () => {
     const reminder = state.reminders.find((item) => item.id === select.dataset.reminderStatusId);
     if (!reminder) return;
-    reminder.enabled = select.value === 'enabled'; reminder.updatedAt = now(); await save(); renderReminders(); showToast(`${reminder.enabled ? '已启用' : '已停用'}提醒：${reminder.title}`);
+    reminder.enabled = select.value === 'enabled'; reminder.lastEditedBy='user'; reminder.updatedAt = now(); await save(); renderReminders(); showToast(`${reminder.enabled ? '已启用' : '已停用'}提醒：${reminder.title}`);
   }));
   document.querySelectorAll('[data-reminder-repeat-id]').forEach((select) => select.addEventListener('change', async () => {
     const reminder = state.reminders.find((item) => item.id === select.dataset.reminderRepeatId);
     if (!reminder) return;
-    reminder.repeat = select.value; reminder.updatedAt = now(); await save(); renderReminders(); showToast(`已调整提醒频率：${reminderRepeatText(reminder)}`);
+    reminder.repeat = select.value; reminder.lastEditedBy='user'; reminder.updatedAt = now(); await save(); renderReminders(); showToast(`已调整提醒频率：${reminderRepeatText(reminder)}`);
   }));
   document.querySelectorAll('[data-delete-reminder-id]').forEach((button) => button.addEventListener('click', async (event) => {
     event.stopPropagation();
@@ -270,11 +274,12 @@ function renderReminders() {
 }
 
 function applyTheme(theme) { const selected = themeLabels[theme] ? theme : 'pastel-mix'; document.documentElement.dataset.theme = selected; }
-function renderAll() { refreshParentStatuses(); applyTheme(state.settings.theme); renderMessages(); renderTasks(); renderCurrent(); renderReminders(); $('#toneLabel').textContent = state.settings.tone || '老板模式'; $('#connectionBadge').textContent = state.settings.apiKey ? `${state.settings.model || '已连接'}` : '本地模式'; $('#connectionBadge').classList.toggle('muted', !state.settings.apiKey); }
+function renderAll() { refreshParentStatuses(); applyTheme(state.settings.theme); renderMessages(); renderTasks(); renderCurrent(); renderReminders(); $('#toneLabel').textContent = state.settings.tone || '老板模式'; $('#connectionBadge').textContent = state.settings.apiKey ? `${state.settings.model || '已连接'}` : '本地模式'; $('#connectionBadge').classList.toggle('muted', !state.settings.apiKey); window.recordsUI?.render(); }
 
-function updateTask(taskId, patch) { const task = state.tasks.find((item) => item.id === taskId); if (!task) return; const safePatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)); Object.assign(task, safePatch, { updatedAt: now() }); if (patch.status === 'completed' && !task.completedAt) task.completedAt = now(); }
+function updateTask(taskId, patch) { const task = state.tasks.find((item) => item.id === taskId); if (!task) return; const safePatch = Object.fromEntries(Object.entries(patch).filter(([, value]) => value !== undefined)); Object.assign(task, safePatch, { updatedAt: now(),lastEditedBy:'user' }); if (patch.status === 'completed' && !task.completedAt) task.completedAt = now();if(patch.status==='cancelled')task.cancelledAt=now(); }
 
 function applyActions(actions = []) {
+  const recordedBefore=window.recordBook.capture(state);
   const deferredTaskIds = new Set(actions.filter((action) => action?.taskId && (action.type === 'postpone_task' || action.type === 'snooze_task' || (action.status === 'planned' && action.dueAt))).map((action) => action.taskId));
   actions.forEach((action) => {
     if (!action || action.type === 'none') return;
@@ -322,6 +327,7 @@ function applyActions(actions = []) {
     const next = sortTasks(state.tasks).find((task) => !deferredTaskIds.has(task.id) && ['planned', 'inbox'].includes(task.status) && isTaskAvailable(task));
     if (next && !actions.some((action) => action.taskId === next.id)) next.status = 'active';
   }
+  window.recordBook.attribute(state,recordedBefore,state.activeFriendId||'zhixu');
 }
 
 function isClearRequest(input) { return /(?:删除|清空|清除).*(?:所有|全部).*(?:任务|工作)|(?:所有|全部).*(?:任务|工作).*(?:删除|清空|清除)|(?:清空|清除)(?:所有|全部)?(?:的)?(?:任务列表|任务)/.test(input); }
@@ -425,6 +431,7 @@ async function confirmDeleteTask(taskId, fromBubble = false) {
 let agentBusy = false;
 const bubbleReplyQueue = [];
 async function handleMessage(text, fromBubble = false, context = null) {
+  if(friendSwitching){showToast('正在切换朋友，请稍候');return;}
   if(chatClearing){showToast('正在清空聊天，请稍候');return;}
   if (agentBusy) { if (fromBubble) { bubbleReplyQueue.push({text,fromBubble,context}); showToast('气泡回复已接收，稍后处理'); } else showToast('正在处理上一条消息，请稍候'); return; }
   agentBusy = true; document.body.classList.add('agent-running'); syncComposer();
@@ -487,7 +494,7 @@ async function handleMessageInternal(text, fromBubble = false, context = null) {
       return;
     }
   }
-  const messages = state.messages.map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', content: message.content, sticker:message.sticker }));
+  const messages = state.messages.filter(m=>!['moment','sticker'].includes(m.kind)).map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', content: message.content, sticker:message.sticker }));
   await save();
   const result = await window.humanDispatch.askAI({ text: input, messages, context });
   if (result.applied && result.state) Object.assign(state, result.state);
@@ -651,7 +658,7 @@ $('#modelInput').addEventListener('input',()=>{const value=$('#modelInput').valu
 
 let profileDraft={};let profileDraftEpoch=0;let avatarLoads=0;const avatarRequestIds={assistant:0,user:0};
 function renderIdentity(){
-  const identity=window.chatProfile.get(state.settings);$('#assistantDisplayName').textContent=identity.assistantName;$('#conversationDisplayName').textContent=identity.assistantName;$('#contactAvatarImage').src=identity.assistantAvatar;$('#activeConversation').setAttribute('aria-label','打开'+identity.assistantName+'会话');$('#chatMessages').setAttribute('aria-label','与'+identity.assistantName+'的聊天记录');$('#chatInputLabel').textContent='发送给'+identity.assistantName+'的消息';$('#typingText').textContent=identity.assistantName+'正在思考';return identity;
+  const identity=window.chatProfile.get(state.settings);$('#assistantDisplayName').textContent=identity.assistantName;$('#conversationDisplayName').textContent=identity.assistantName;$('#contactAvatarImage').src=identity.assistantAvatar;$('#activeConversation').setAttribute('aria-label','打开'+identity.assistantName+'会话');$('#chatMessages').setAttribute('aria-label','与'+identity.assistantName+'的聊天记录');$('#chatInputLabel').textContent='发送给'+identity.assistantName+'的消息';$('#typingText').textContent=identity.assistantName+'正在思考';window.companionUI?.render();return identity;
 }
 function refreshProfilePreview(){for(const role of ['assistant','user'])$('#'+role+'AvatarPreview').src=profileDraft[role+'Avatar'];}
 function openProfileSettings(settings){profileDraftEpoch++;profileDraft=window.chatProfile.get(settings);$('#assistantNameInput').value=profileDraft.assistantName;$('#userNameInput').value=profileDraft.userName;refreshProfilePreview();}
@@ -663,10 +670,10 @@ async function avatarFromFile(file){
 const identitySection=document.createElement('section');identitySection.className='identity-section settings-section';identitySection.innerHTML='<div class="settings-section-title">聊天身份</div><p class="settings-section-copy">知序，陪你把事情理清、做好。你和助手的名称、头像都可以自由修改。</p><div class="identity-grid">'+[['assistant','助手','知序'],['user','我的','我']].map(([role,label,name])=>'<div class="identity-card"><img id="'+role+'AvatarPreview" class="identity-preview" data-avatar-role="'+role+'" alt="'+label+'头像预览" src="'+window.chatProfile.defaults[role+'Avatar']+'" /><label>'+label+'名称<input id="'+role+'NameInput" maxlength="24" placeholder="'+name+'" /></label><div class="identity-actions"><button type="button" class="secondary" id="'+role+'AvatarChange">更换头像</button><button type="button" class="text-button" id="'+role+'AvatarReset">恢复默认头像</button></div><input id="'+role+'AvatarFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>').join('')+'</div><span class="settings-section-copy">图片自动居中裁剪，保存在本机，点击“保存设置”后生效。</span>';$('#settingsForm').prepend(identitySection);
 for(const role of ['assistant','user']){
  $('#'+role+'AvatarChange').addEventListener('click',()=>$('#'+role+'AvatarFile').click());
- $('#'+role+'AvatarReset').addEventListener('click',()=>{avatarRequestIds[role]++;profileDraft[role+'Avatar']=window.chatProfile.defaults[role+'Avatar'];refreshProfilePreview();$('#settingsStatus').textContent='已恢复默认头像，保存设置后生效。';});
+ $('#'+role+'AvatarReset').addEventListener('click',()=>{avatarRequestIds[role]++;profileDraft[role+'Avatar']=window.chatProfile.defaultsFor(state.settings)[role+'Avatar'];refreshProfilePreview();$('#settingsStatus').textContent='已恢复默认头像，保存设置后生效。';});
  $('#'+role+'AvatarFile').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;const epoch=profileDraftEpoch,ticket=++avatarRequestIds[role];avatarLoads++;try{const value=await avatarFromFile(file);if(epoch!==profileDraftEpoch||ticket!==avatarRequestIds[role])return;profileDraft[role+'Avatar']=value;refreshProfilePreview();$('#settingsStatus').textContent='头像已预览，保存设置后生效。';}catch(error){if(epoch===profileDraftEpoch)$('#settingsStatus').textContent=error.message;}finally{avatarLoads--;event.target.value='';}});
 }
-document.addEventListener('error',event=>{const image=event.target;if(image instanceof HTMLImageElement&&image.dataset.avatarRole){const fallback=window.chatProfile.defaults[image.dataset.avatarRole+'Avatar'];if(image.getAttribute('src')!==fallback)image.src=fallback;}},true);
+document.addEventListener('error',event=>{const image=event.target;if(image instanceof HTMLImageElement&&image.dataset.avatarRole){const fallback=image.dataset.avatarFallback||window.chatProfile.defaultsFor(state.settings)[image.dataset.avatarRole+'Avatar'];if(image.getAttribute('src')!==fallback)image.src=fallback;}},true);
 
 async function openSettings() {
   try { const info = await window.humanDispatch.getDataDirectory(); $('#dataDirectoryInput').value = info.directory; $('#changeDataDirectoryButton').disabled = info.configurable === false; } catch (error) { $('#dataDirectoryInput').value = '读取失败'; }
@@ -857,7 +864,7 @@ async function submitEntry(event) {
       const question=state.agentContext?.pendingQuestion;const field=question?.field==='details'?'description':question?.field;
       if(question?.taskId===existing.id && patch[field])state.agentContext.pendingQuestion=null;
      }else {
-      const task={id:uid('task'),projectName:'默认项目',isContainer:false,createdAt:now(),...patch};
+      const task={id:uid('task'),projectName:'默认项目',isContainer:false,createdAt:now(),recordedBy:'user',lastEditedBy:'user',...patch};
       if(status==='completed')task.completedAt=now();
       state.tasks.push(task);
       const when=deferredUntil||startsAt||dueAt;

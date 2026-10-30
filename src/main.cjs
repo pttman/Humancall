@@ -49,7 +49,7 @@ function createWindow() {
     minWidth: 920,
     minHeight: 640,
     backgroundColor: '#10151c',
-    title: '人类调度',
+    title: '人类调度 ' + app.getVersion(),
     icon: appIconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -59,6 +59,7 @@ function createWindow() {
   });
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setAutoHideMenuBar(true);
+  mainWindow.on('page-title-updated', (event) => { event.preventDefault(); mainWindow.setTitle('人类调度 ' + app.getVersion()); });
   mainWindow.loadURL(frontendUrl + '/index.html');
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
@@ -137,7 +138,7 @@ function hideBubble() {
 function createTray() {
   const appIcon = nativeImage.createFromPath(appIconPngPath);
   tray = new Tray(appIcon.isEmpty() ? nativeImage.createEmpty() : appIcon.resize({ width: 32, height: 32 }));
-  tray.setToolTip('人类调度');
+  tray.setToolTip('人类调度 ' + app.getVersion());
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开调度窗', click: () => { mainWindow.show(); mainWindow.focus(); } },
     { label: '立即弹出督促', click: () => passiveNudge(true) },
