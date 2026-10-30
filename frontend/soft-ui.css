@@ -1,0 +1,35 @@
+/* Settings presets and direct task editing. */
+.command-actions[hidden],#presetModelField[hidden]{display:none!important}
+.provider-card{display:grid;gap:14px;padding:17px;border:1px solid var(--line);border-radius:6px;background:var(--panel-2)}
+#modelAdvanced summary{cursor:pointer;font-size:12px;color:var(--muted);padding:4px 0}#modelAdvanced[open]{display:grid;gap:12px}#modelAdvanced label{margin-top:12px}
+/* Content and actions occupy separate rows, including on narrow screens. */
+.messenger-shell .side-column{width:clamp(430px,48vw,600px);max-width:calc(100% - 18px);padding-inline:20px}
+.messenger-shell .task-item{grid-template-columns:8px minmax(0,1fr);gap:7px 11px;padding:15px 11px;cursor:default}
+.messenger-shell .task-item.subtask{padding-left:27px}
+.messenger-shell .task-title-line{display:flex;align-items:flex-start;gap:5px;min-width:0}
+.messenger-shell button.task-title{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;min-width:0;max-width:100%;padding:0;border:0;border-radius:0;box-shadow:none;background:transparent;text-align:left;font:inherit;font-size:14px;font-weight:500;line-height:1.65;color:var(--text);white-space:normal;overflow-wrap:anywhere;cursor:pointer}
+.messenger-shell button.task-title:hover{color:var(--green);text-decoration:underline}
+.messenger-shell button.task-title.completed{color:var(--muted);text-decoration:line-through}
+.messenger-shell .task-item.parent-task button.task-title{font-weight:600}
+.task-kind-label{display:inline-block;font-size:10px;color:var(--muted);font-weight:400;margin-right:7px}
+.task-description{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;font-size:12px;line-height:1.7;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+.messenger-shell .task-sub{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:7px;font-size:11px;line-height:1.6}
+.task-detail{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.messenger-shell .task-item.subtask .task-sub{font-size:11px}
+.task-row-actions{grid-column:2;display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-top:3px;min-width:0}
+.messenger-shell .task-row-actions .task-status-select{flex:none;min-width:88px;max-width:110px;font-size:11px;padding:5px 9px}
+.task-row-actions .task-edit{margin-left:auto;padding:6px 11px;background:var(--panel-2);font-size:12px;white-space:nowrap}
+.task-row-actions .task-delete{padding:5px 9px;font-size:11px;white-space:nowrap}
+.current-task-heading{display:flex;align-items:center;justify-content:space-between;gap:12px}.current-task-heading .task-edit{font-size:11px;padding:4px 6px}#editCurrentTaskButton[hidden]{display:none!important}
+.messenger-shell .task-toolbar{grid-template-columns:minmax(100px,1fr) 112px auto;align-items:center}
+.messenger-shell .task-toolbar .compact-toggle{grid-column:auto;white-space:nowrap}
+@media(max-width:760px){.messenger-shell .side-column{width:100%;max-width:100%;padding-inline:12px}.messenger-shell .task-item{padding-inline:9px;column-gap:8px}.messenger-shell .task-item.subtask{padding-left:19px}.messenger-shell .task-toolbar{grid-template-columns:minmax(80px,1fr) 112px}.messenger-shell .task-toolbar .compact-toggle{grid-column:1/-1}.messenger-shell button.task-title{font-size:13px}}
+
+.task-edit{border:0;background:transparent;color:var(--green);padding:5px 3px;font-size:11px;cursor:pointer;border-radius:7px}.task-edit:hover{background:var(--panel-2)}
+#clearTasksButton:disabled{opacity:.4;cursor:default}.entry-modal-card{max-height:90vh;overflow:auto}#entryTaskFields label{min-width:0}#entryTaskFields input{min-width:0;width:100%}
+.settings-form .hidden{display:none!important}
+#entryModal .entry-modal-card{display:flex;flex-direction:column;overflow:hidden;min-height:0}
+#entryModal .modal-header{flex:none;padding-bottom:14px;border-bottom:1px solid var(--line)}
+#entryForm{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:9px;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:color-mix(in srgb,var(--green) 50%,transparent) transparent}
+#entryForm .modal-actions{position:sticky;bottom:0;background:var(--panel);padding:12px 0 5px;z-index:1;border-top:1px solid var(--line)}
+#entryForm::-webkit-scrollbar{width:8px}#entryForm::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--green) 40%,transparent);border-radius:12px}

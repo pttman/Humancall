@@ -1,0 +1,32 @@
+/* Neutral desktop messenger surfaces. Theme IDs stay compatible with saved settings. */
+:root[data-theme="pastel-mix"]{--bg:#f5f5f5;--panel:#fff;--panel-2:#f1f1f1;--line:#dedede;--text:#222;--muted:#858585;--green:#07a35a;--green-2:#078b4e;--red:#c85050;--orange:#b87b38;--blue:#497aa1}
+:root[data-theme="paper-focus"]{--bg:#f6f5f0;--panel:#fffefa;--panel-2:#f0efe8;--line:#dedcd4;--text:#292a27;--muted:#85857d;--green:#16875a;--green-2:#107449}
+:root[data-theme="midnight-blue"]{--bg:#202020;--panel:#282828;--panel-2:#303030;--line:#3b3b3b;--text:#e5e5e5;--muted:#999;--green:#20b769;--green-2:#189c57}
+:root[data-theme="midnight-blue"] .messenger-shell{--text:#e5e5e5;--muted:#999;--line:#383838;--panel:#282828;--panel-2:#303030;--chat-surface:#202020;--chat-bubble:#303030;--chat-own:#4d9c45;--session-bg:#272727;--session-selected:#3b3b3b;--green:#20b769}
+:root[data-theme="paper-focus"] .messenger-shell{--chat-surface:#f6f5f0;--session-bg:#efeee8;--session-selected:#e0dfd7;--chat-own:#a9e487}
+:root .messenger-shell .chat-card,:root .messenger-shell .message .bubble{box-shadow:none}
+:root .messenger-shell .chat-form{background:var(--panel);border-radius:0;margin:0;box-shadow:none}
+:root .messenger-shell .rail-brand{border-radius:6px;box-shadow:none}
+.messenger-shell .app-rail{border-right:1px solid #303332}
+.messenger-shell .conversation-item{border-radius:0;box-shadow:none}
+.messenger-shell .today-plan-button{background:#e6e7e6;border-color:#d8dad8;color:#66716b}
+.messenger-shell .task-panel-backdrop{backdrop-filter:none;background:#00000019}
+.messenger-shell .side-column{border-radius:0}
+.messenger-shell .task-title{font-size:12px}.messenger-shell .task-sub{color:var(--muted)}
+:root .modal-card{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 32px #00000029}
+.modal-backdrop{background:#0000003d;backdrop-filter:none}.modal-header h2{font-size:18px;font-weight:600}.modal-header p{line-height:1.6}
+.settings-form label{color:var(--text)}.settings-form input,.settings-form textarea,.settings-form select{border-radius:4px;background:var(--panel);color:var(--text);border:1px solid var(--line);box-shadow:none}
+.modal-actions .primary{background:var(--green);color:white;border-radius:4px}.modal-actions .secondary{background:var(--panel-2);color:var(--text);border-color:var(--line);border-radius:4px}.modal .text-button{color:var(--green)}
+.toast{background:var(--panel);color:var(--text);border-color:var(--line);border-radius:6px;box-shadow:0 3px 16px #00000016}
+:root[data-theme] .bubble-shell{--bg:#fff;--text:#272727;--muted:#858585;--line:#dedede;--green:#07a35a;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:10px;box-shadow:0 4px 20px #00000028;padding:17px;margin:10px}
+:root[data-theme] .bubble-shell::before,:root[data-theme] .bubble-shell::after{background:var(--bg);border-color:var(--line);border-radius:10px;box-shadow:0 3px 12px #00000020}
+:root[data-theme] .bubble-shell .brand-mark{background:#d5e7d1;color:#42734a;border-radius:5px;box-shadow:none}
+:root[data-theme] .bubble-shell .bubble-head strong{color:var(--text);font-size:13px;font-weight:600}:root[data-theme] .bubble-shell .bubble-head span{color:var(--muted);font-size:11px}
+:root[data-theme] .bubble-shell .bubble-body{color:var(--text);font-size:13px;line-height:1.65;margin-top:15px;margin-bottom:12px}
+:root[data-theme] .bubble-shell .close{width:27px;height:27px;border:0;background:transparent;color:var(--muted);border-radius:4px;font-size:20px;box-shadow:none}
+:root[data-theme] .bubble-shell .quick-actions{flex-wrap:wrap;gap:6px}:root[data-theme] .bubble-shell .quick-actions button{background:#f4f4f4;border:1px solid var(--line);color:#505050;border-radius:4px;padding:7px 9px;font-size:11px;font-weight:400}
+:root[data-theme] .bubble-shell input{background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--text);box-shadow:none;font-size:12px;padding:10px 11px}
+:root[data-theme] .bubble-shell form button{background:var(--green);color:white;border-radius:4px;font-size:12px;font-weight:500}
+:root[data-theme] .bubble-shell .open-main{border:0;border-radius:4px;background:transparent;color:var(--muted);box-shadow:none;font-size:11px}
+:root[data-theme="midnight-blue"] .bubble-shell{--bg:#282828;--text:#e5e5e5;--muted:#aaa;--line:#444;--green:#19a861}:root[data-theme="midnight-blue"] .bubble-shell .quick-actions button{background:#333;color:#ddd}:root[data-theme="midnight-blue"] .bubble-shell .brand-mark{background:#3b5d3c;color:#b9dbb7}
+@media(prefers-reduced-motion:reduce){.messenger-shell *,.bubble-shell *{transition:none!important}}

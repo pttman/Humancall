@@ -1,0 +1,23 @@
+.message-sticker-host { width:96px; max-width:100%; }
+.chat-sticker { position:relative; display:flex; flex-direction:column; align-items:flex-start; width:96px; max-width:100%; margin:8px 0 5px; }
+.chat-sticker img { display:block; width:96px; max-width:100%; height:auto; max-height:96px; aspect-ratio:auto; object-fit:contain; }
+.chat-sticker figcaption { color:var(--muted,#858585); font-size:12px; }
+.chat-sticker img[hidden],.chat-sticker figcaption[hidden],.chat-sticker button[hidden] { display:none; }
+.sticker-animation-toggle { border:0; background:transparent; color:var(--muted,#858585); padding:3px 0; font-size:10px; cursor:pointer; border-radius:4px; opacity:0; transition:opacity .15s; }
+.chat-sticker:hover .sticker-animation-toggle,.chat-sticker:focus-within .sticker-animation-toggle { opacity:1; }
+.sticker-animation-toggle:hover { background:var(--panel-2,#f1f1f1); }
+.sticker-animation-toggle:focus-visible { outline:2px solid #07a35a; }
+.sticker-source { display:block; margin-top:0; font-size:9px; line-height:1.5; text-align:left; }
+.sticker-source summary { cursor:pointer; opacity:.65; }
+.sticker-source a { color:var(--muted,#858585); font-size:9px; text-decoration:none; }
+.sticker-source[open] a { display:block; }
+.sticker-source a:hover { text-decoration:underline; }
+#bubbleSticker { display:flex; justify-content:center; }
+#bubbleSticker .chat-sticker { width:72px; margin:4px 0; }
+#bubbleSticker .chat-sticker img { width:72px; max-width:72px; max-height:72px; }
+#bubbleSticker .sticker-source { display:none; }
+@media(hover:none) { .chat-sticker .sticker-animation-toggle { opacity:1; } }
+@media(prefers-reduced-motion:reduce) { .sticker-animation-toggle { transition:none; } }
+/* Stickers are their own assistant messages, following the text answer. */
+.messenger-shell .sticker-message .message-sticker-host{margin-top:0}
+.messenger-shell .sticker-message .chat-sticker{margin-top:0}

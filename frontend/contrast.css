@@ -1,0 +1,27 @@
+/* Keep the messenger palette while making secondary text readable. */
+:root:not([data-theme="midnight-blue"]){--text:#20252a;--muted:#59636b;--green:#087e45;--green-2:#066737}
+:root:not([data-theme="midnight-blue"]) .messenger-shell{--text:#20252a;--muted:#59636b;--green:#087e45;--green-2:#066737}
+:root[data-theme="midnight-blue"]{--text:#f0f2f4;--muted:#b8c0c7;--green:#22bd72;--green-2:#1aab63}
+:root[data-theme="midnight-blue"] .messenger-shell{--text:#f0f2f4;--muted:#b8c0c7;--green:#22bd72;--green-2:#1aab63}
+:root .messenger-shell :is(.sender-name,.message-time,.message-meta,.copy-message,.conversation-preview,.conversation-line time,.conversation-heading>span,.conversation-label,.conversation-bottom,.chat-contact p,.composer-tool,.composer-private,.composer-footer>span,.task-meta,.task-sub,.execution-trace,.execution-trace small,.empty,.last-checkin){color:var(--muted)}
+:root .messenger-shell .message .bubble{color:var(--text);font-size:14px;line-height:1.75}
+:root .messenger-shell .message.user .bubble{color:#162916}
+:root[data-theme="midnight-blue"] .messenger-shell .message.user .bubble{background:#76c86b;color:#122411}
+:root .messenger-shell #chatInput{color:var(--text);font-size:14px}
+:root .messenger-shell :is(input,textarea)::placeholder{color:var(--muted);opacity:1}
+:root .settings-form :is(input,textarea)::placeholder{color:var(--muted);opacity:1}
+:root .messenger-shell .chat-header-button,:root .messenger-shell .badge.muted{color:var(--muted)}
+:root .messenger-shell .today-plan-button{color:var(--muted)}
+:root .messenger-shell .conversation-search svg{color:var(--muted)}
+:root .messenger-shell :is(.send-button,.primary){background:var(--green);color:#fff}
+:root[data-theme="midnight-blue"] .messenger-shell :is(.send-button,.primary){background:#128447;color:#fff}
+:root .messenger-shell .send-button:disabled{opacity:1;background:var(--panel-2);color:var(--muted);border:1px solid var(--line)}
+:root .messenger-shell .reminder-item.is-disabled{opacity:1}.messenger-shell .reminder-item.is-disabled .reminder-title{color:var(--muted)}
+:root .settings-form :is(.settings-section-copy,.prompt-hint,.theme-hint),:root .modal-header p{color:var(--muted)}
+:root .messenger-shell :is(.sender-name,.message-time,.message-meta,.composer-footer>span){font-size:11px}
+:root[data-theme] .bubble-shell{--text:#24292d;--muted:#59636b;--green:#087e45}
+:root[data-theme="midnight-blue"] .bubble-shell{--text:#f0f2f4;--muted:#b8c0c7;--green:#128447}
+:root[data-theme] .bubble-shell input::placeholder{color:var(--muted);opacity:1}
+:root[data-theme] .bubble-shell form button{box-shadow:none}
+:root[data-theme] .bubble-shell .open-main{color:var(--muted)}
+:root .messenger-shell #chatInput::placeholder{color:var(--muted);opacity:1}

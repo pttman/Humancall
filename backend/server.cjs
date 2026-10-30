@@ -2,6 +2,9 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('./core.cjs');
+const { runAgent, fingerprint } = require('./agent.cjs');
+const { createSupervisor } = require('./supervisor.cjs');
+const {searchOnlineStickers}=require('./online-stickers.cjs');
 const { createStorageController } = require('./storage.cjs');
 function loadEnv(file = path.join(__dirname, '.env')) {
   if (!fs.existsSync(file)) return;
@@ -19,7 +22,9 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 2 * 1024 * 1024) throw Object.assign(new Error('请求超过 2 MB'), { status: 413 }); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
-function createServer({ serveFrontend = true, storage } = {}) {
+function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
+  const saveState=value=>{const saved=core.writeState(value);onStateSaved?.(saved);return saved;};
+  const checkIn = createSupervisor({readState:core.readState});
   return http.createServer(async (req, res) => {
     const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
@@ -33,6 +38,12 @@ function createServer({ serveFrontend = true, storage } = {}) {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       const url = new URL(req.url, 'http://localhost');
       const route = `${req.method} ${url.pathname}`;
+      if (route === 'POST /api/ai/check-in') { const payload=await body(req); return send(200, await checkIn({taskId:payload.taskId,reason:payload.reason,force:payload.force === true})); }
+      if (route === 'POST /api/stickers/search') {
+        const payload=await body(req);const settings=core.readState().settings;
+        if(settings.stickersEnabled===false||settings.onlineStickersEnabled===false)return send(400,{error:'请先在设置中开启表情包和联网搜索'});
+        try{return send(200,{source:'online',stickers:await searchOnlineStickers({query:payload.query,mood:payload.mood,animated:payload.animated})});}catch{return send(502,{error:'暂时无法连接外部动图服务，请检查网络后重试'});}
+      }
       if (route === 'GET /api/health') return send(200, { ok: true });
       if (route === 'GET /api/storage') return send(200, storage ? storage.get() : { directory: '', configurable: false });
       if (route === 'PUT /api/storage') {
@@ -41,16 +52,39 @@ function createServer({ serveFrontend = true, storage } = {}) {
         try { return send(200, storage.set(value.directory)); } catch (error) { return send(400, { error: error.message }); }
       }
       if (route === 'GET /api/state') return send(200, core.readState());
-      if (route === 'PUT /api/state') { const value = validateState(await body(req)); return send(200, core.writeState(value)); }
+      if (route === 'PUT /api/state') { const value = validateState(await body(req)); return send(200, saveState(value)); }
       if (route === 'GET /api/settings/prompts') return send(200, { defaultPrompt: core.DEFAULT_SYSTEM_PROMPT, tonePrompts: core.TONE_PROMPTS });
-      if (route === 'GET /api/backup') { const snapshot = core.readState(); snapshot.settings = { ...snapshot.settings, apiKey: '', apiKeyIncluded: false }; return send(200, snapshot); }
-      if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); core.writeState(state); return send(200, { canceled: false, state }); }
+      if (route === 'GET /api/backup') { const snapshot = core.readState(); snapshot.settings = require('../frontend/model-presets.js').redact(snapshot.settings); return send(200, snapshot); }
+      if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); saveState(state); return send(200, { canceled: false, state }); }
       if (route === 'POST /api/ai/chat') {
         const payload = await body(req); const state = core.readState();
         const settings = { ...state.settings, ...(payload.settings || {}) };
         settings.apiKey = settings.apiKey || process.env.MODEL_API_KEY || '';
         if (process.env.MODEL_BASE_URL && !payload.settings) settings.baseUrl = process.env.MODEL_BASE_URL;
         if (process.env.MODEL_NAME && !payload.settings) settings.model = process.env.MODEL_NAME;
+        if (typeof payload.text !== 'string' || payload.text.length > 12000 || (payload.messages !== undefined && !Array.isArray(payload.messages))) return send(400, { error: '消息格式不正确或过长' });
+        if (settings.apiKey && (!payload.settings || payload.testAgent === true)) {
+          const before = fingerprint(state);
+          try {
+            const result = await runAgent({ settings, text: payload.text, messages: payload.messages || state.messages, state, context:payload.context, mode:payload.testAgent===true?'connection_test':'chat' });
+            const latest = core.readState();
+            if (fingerprint(latest) !== before) return send(409, { error: '执行期间任务或设置已更改，本轮未提交，请重新发送' });
+            const { draft, dirty, ...response } = result;
+            if (payload.testAgent === true) return send(200, { ...response, actions: [], dryRun: true });
+            if (dirty || result.contextDirty) {
+              const committed = { ...latest, tasks:draft.tasks, reminders:draft.reminders, projects:draft.projects, supervisionEvents:draft.supervisionEvents, agentContext:draft.agentContext };
+              const changed = new Set(result.actions.map(a => a.taskId).filter(Boolean));
+              const next = committed.tasks.find(t => changed.has(t.id) && t.status === 'active' && !t.isContainer) || committed.tasks.find(t => t.status === 'active' && !t.isContainer);
+              if (!result.question && result.followUpMinutes && next) {
+                committed.supervisionEvents = committed.supervisionEvents.filter(e => e.taskId !== next.id || e.sent);
+                committed.supervisionEvents.push({ id: result.agent.id, taskId:next.id, type:'check_in', scheduledAt:new Date(Date.now()+result.followUpMinutes*60000).toISOString(), sent:false, createdAt:new Date().toISOString() });
+              }
+              saveState(committed); response.state = committed; response.applied = true;
+            }
+            if (!response.applied) { response.state = latest; response.applied = true; }
+            return send(200, response);
+          } catch (error) { return send(502, { error: error.message + '；本轮未保存任何修改。请根据上述错误检查 API 配置，或稍后重试。' }); }
+        }
         try { return send(200, { ...await core.callModel({ settings, messages: payload.messages || [], tasks: state.tasks, reminders: state.reminders }), source: 'model' }); }
         catch (error) { return send(200, { ...core.localFallback(payload.text, state.tasks), source: 'local', warning: error.message }); }
       }

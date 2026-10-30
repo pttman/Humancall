@@ -16,7 +16,8 @@ function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (c) 
 async function resizeToContent() {
   const shell = $('.bubble-shell');
   if (!shell) return;
-  const desiredHeight = Math.ceil(shell.scrollHeight + 16);
+  const style=getComputedStyle(shell);
+  const desiredHeight = Math.ceil(shell.getBoundingClientRect().height + parseFloat(style.marginTop) + parseFloat(style.marginBottom) + 2);
   await window.humanDispatch.resizeBubble(desiredHeight);
 }
 
@@ -37,7 +38,7 @@ function currentBubble() { return bubbleItems[activeIndex] || null; }
 
 function renderQuickActions(actions) {
   const container = $('#quickActions');
-  const items = Array.isArray(actions) && actions.length ? actions : defaultActions;
+  const items = Array.isArray(actions) ? actions : defaultActions;
   container.innerHTML = items.map((item) => {
     const label = String(item.label || item.message || '继续');
     if (item.action === 'open-main') return `<button data-action="open-main">${escapeHtml(label)}</button>`;
@@ -57,10 +58,12 @@ function renderCurrent(playSound = false, direction = 0) {
     shell.classList.add(direction > 0 ? 'switch-next' : 'switch-prev');
     window.setTimeout(() => shell.classList.remove('switch-next', 'switch-prev'), 280);
   }
+  if(payload.identity)applyIdentity(payload.identity);
   document.documentElement.dataset.theme = ['pastel-mix', 'midnight-blue', 'paper-focus'].includes(payload.theme) ? payload.theme : 'pastel-mix';
   document.documentElement.dataset.stack = bubbleItems.length > 1 ? 'stacked' : 'single';
   $('#bubbleTitle').textContent = payload.title || '该干活了';
   $('#bubbleBody').textContent = payload.body || '我在等你的汇报。';
+  const sticker=window.stickerUI.create(payload.sticker);$('#bubbleSticker').replaceChildren(...(sticker?[sticker]:[]));
   $('#bubbleStackInfo').textContent = bubbleItems.length > 1 ? `${activeIndex + 1} / ${bubbleItems.length} · 滚轮切换` : '';
   renderQuickActions(payload.quickActions);
   $('#bubbleInput').value = '';
@@ -103,12 +106,18 @@ async function send(text) {
   const current = currentBubble();
   if (current) bubbleItems.splice(activeIndex, 1);
   if (bubbleItems.length) activeIndex = Math.min(activeIndex, bubbleItems.length - 1);
-  await window.humanDispatch.bubbleSubmit(text.trim());
+  await window.humanDispatch.bubbleSubmit({text:text.trim(),context:current ? {taskId:current.taskId,questionId:current.questionId,body:current.body} : null});
   if (bubbleItems.length) window.humanDispatch.showBubble(bubbleItems[activeIndex]);
 }
 
 window.humanDispatch.onBubbleShow((payload) => addBubble(payload));
 window.humanDispatch.onBubbleClear(() => { bubbleItems = []; activeIndex = 0; });
+window.humanDispatch.onBubblePrune(current=>{
+  const activeId=currentBubble()?.bubbleId;const kept=bubbleItems.filter(p=>window.conversationState.isBubbleLive(p,current));
+  if(kept.length===bubbleItems.length)return;
+  bubbleItems=kept;activeIndex=Math.max(0,bubbleItems.findIndex(p=>p.bubbleId===activeId));
+  if(bubbleItems.length)renderCurrent(false);else window.humanDispatch.hideBubble();
+});
 
 prepareAlertSound();
 
@@ -120,3 +129,9 @@ $('.bubble-shell').addEventListener('wheel', (event) => {
   event.preventDefault();
   switchBubble(event.deltaY > 0 ? 1 : -1);
 }, { passive: false });
+
+// Image loads and font layout can change the reminder height after its first paint.
+let resizeFrame;new ResizeObserver(()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(resizeToContent);}).observe($('.bubble-shell'));
+
+function applyIdentity(value){const identity=window.chatProfile.get(value);$('#bubbleAssistantName').textContent=identity.assistantName;$('#bubbleAvatarImage').src=identity.assistantAvatar;$('#bubbleInput').placeholder='回复'+identity.assistantName+'……';for(const item of bubbleItems)item.identity=identity;}
+window.humanDispatch.onIdentityUpdate(applyIdentity);

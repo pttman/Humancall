@@ -1,6 +1,6 @@
 (() => {
   const desktop = window.desktopDispatch;
-  const listeners = { show: [], clear: [], submit: [] };
+  const listeners = { show: [], clear: [], submit: [], prune: [], identity: [] };
   const channel = !desktop && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('human-dispatch-bubble') : null;
   channel?.addEventListener('message', ({ data }) => listeners[data.type]?.forEach(fn => fn(data.payload)));
   async function request(route, method = 'GET', value) {
@@ -13,9 +13,15 @@
     getDataDirectory: () => request('storage'),
     setDataDirectory: directory => request('storage', 'PUT', { directory }),
     chooseDataDirectory: desktop?.chooseDataDirectory || (async () => window.prompt('输入本机数据保存文件夹的绝对路径')),
-    loadState: () => request('state'), saveState: state => request('state', 'PUT', state),
+    loadState: () => request('state'), saveState: async state => {const saved=await request('state','PUT',state);if(!desktop){emit('prune',window.conversationState.bubbleState(saved));emit('identity',window.chatProfile.get(saved.settings));}return saved;},
     getDefaultPrompt: async () => (await request('settings/prompts')).defaultPrompt,
     getTonePrompts: async () => (await request('settings/prompts')).tonePrompts,
+    searchOnlineStickers: query=>request('stickers/search','POST',{query}),
+    checkIn: payload => request('ai/check-in', 'POST', payload),
+    onSupervisionRequest: desktop?.onSupervisionRequest || (()=>{}),
+    onBubblePrune: desktop?.onBubblePrune || (fn=>listeners.prune.push(fn)),
+    onIdentityUpdate: desktop?.onIdentityUpdate || (fn=>listeners.identity.push(fn)),
+    clearBubbles: desktop?.clearBubbles || (async()=>emit('clear')),
     askAI: payload => request('ai/chat', 'POST', payload),
     exportData: async () => { const state = await request('backup'); const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = '人类调度-备份.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return { canceled: false, filePath: a.download }; },
     importData: () => new Promise((resolve, reject) => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.oncancel = () => resolve({ canceled: true }); input.onchange = async () => { try { if (!input.files.length) return resolve({ canceled: true }); resolve(await request('backup', 'POST', JSON.parse(await input.files[0].text()))); } catch (error) { reject(error); } }; input.click(); }),

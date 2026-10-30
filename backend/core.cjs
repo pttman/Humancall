@@ -1,3 +1,7 @@
+const chatProfile=require('../frontend/chat-profile.js');
+const conversationState=require('../frontend/conversation-state.js');
+const modelPresets=require('../frontend/model-presets.js');
+const taskSchedule=require('../frontend/task-schedule.js');
 const fs = require('fs');
 const path = require('path');
 const TONE_GUIDANCE = {
@@ -21,19 +25,23 @@ const TONE_PROMPTS = Object.fromEntries(Object.entries(TONE_GUIDANCE).map(([tone
 const LEGACY_DEFAULT_PROMPT_MARKER = '一个强势、直接、像老板一样管理用户工作的 AI 调度者';
 const defaultState = {
   settings: {
+    ...chatProfile.defaults,
     provider: 'OpenAI Compatible',
-    baseUrl: 'https://api.openai.com/v1',
+    providerId: 'deepseek',
+    baseUrl: 'https://api.deepseek.com',
     apiKey: '',
-    model: 'gpt-4o-mini',
+    model: 'deepseek-flash',
     tone: '老板模式',
     workStart: '09:00',
     workEnd: '18:00',
     notifications: true,
+    stickersEnabled: true,
+    onlineStickersEnabled: true,
+    stickerFrequency: 'lively',
     reminderMinutes: 30,
     passiveNudgesEnabled: true,
     passiveNudgeMinutes: 10,
     quietUntil: '',
-    supportUrl: '',
     systemPrompt: TONE_PROMPTS['老板模式'],
     tonePrompts: TONE_PROMPTS,
     theme: 'pastel-mix',
@@ -59,31 +67,44 @@ function readState() {
       parsed.settings.themeConfigured = true;
     }
     const settings = { ...defaultState.settings, ...(parsed.settings || {}) };
+    settings.providerId=modelPresets.infer(settings);chatProfile.normalize(settings);
     if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(settings.theme)) settings.theme = 'pastel-mix';
     const savedTonePrompts = parsed.settings?.tonePrompts || {};
     if (!parsed.settings?.tonePrompts && parsed.settings?.systemPrompt && !String(parsed.settings.systemPrompt).includes(LEGACY_DEFAULT_PROMPT_MARKER)) savedTonePrompts[settings.tone] = parsed.settings.systemPrompt;
     settings.tonePrompts = { ...TONE_PROMPTS, ...savedTonePrompts };
     settings.systemPrompt = settings.tonePrompts[settings.tone] || settings.systemPrompt || DEFAULT_SYSTEM_PROMPT;
-    return { ...defaultState, ...parsed, settings };
+    const state={ ...defaultState, ...parsed, settings };conversationState.reconcile(state);return state;
   } catch {
     return structuredClone(defaultState);
   }
 }
 
 function writeState(state) {
+  chatProfile.normalize(state.settings);
+  conversationState.reconcile(state);
   const target = statePath();
   fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, JSON.stringify(state, null, 2), 'utf8');
+  const temporary = target + '.' + process.pid + '.tmp';
+  try {
+    fs.writeFileSync(temporary, JSON.stringify(state, null, 2), 'utf8');
+    fs.renameSync(temporary, target);
+  } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
   return state;
 }
 
 function normalizeImportedState(parsed, currentState) {
   if (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.reminders)) throw new Error('备份文件格式不正确');
   const imported = { ...defaultState, ...parsed, settings: { ...defaultState.settings, ...(parsed.settings || {}) } };
-  imported.settings.apiKey = currentState?.settings?.apiKey || imported.settings.apiKey || '';
+  const current=currentState?.settings||{};const profiles=modelPresets.profiles(current);
+  const providerId=modelPresets.infer(imported.settings);
+  const matching=profiles[providerId];
+  imported.settings.apiKey=matching&&modelPresets.normalized(matching.baseUrl)===modelPresets.normalized(imported.settings.baseUrl)?matching.apiKey||'':'';
+  imported.settings.providerId=providerId;imported.settings.providerConfigs=profiles;
   if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(imported.settings.theme)) imported.settings.theme = 'pastel-mix';
   imported.settings.tonePrompts = { ...TONE_PROMPTS, ...(parsed.settings?.tonePrompts || {}) };
   imported.settings.systemPrompt = imported.settings.tonePrompts[imported.settings.tone] || imported.settings.systemPrompt || TONE_PROMPTS[imported.settings.tone] || DEFAULT_SYSTEM_PROMPT;
+  chatProfile.normalize(imported.settings);
+  conversationState.reconcile(imported);
   return imported;
 }
 
@@ -227,7 +248,7 @@ function localFallback(text, tasks) {
     return { reply: '没有第二项可换。把新的工作交出来，或者继续完成当前任务。', actions: [] };
   }
   if (/我现在做什么|现在做什么|安排一下|下一项|继续下一项|安排新工作/.test(input)) {
-    const next = tasks.find((task) => ['planned', 'inbox', 'active'].includes(task.status) && (!task.dueAt || new Date(task.dueAt) <= new Date()));
+    const next = tasks.find((task) => ['planned', 'inbox', 'active'].includes(task.status) && taskSchedule.available(task));
     if (next) return { reply: `现在执行“${next.title}”。先做第一步，${next.estimatedMinutes || 30} 分钟后回来汇报。`, actions: [{ type: 'update_task', taskId: next.id, status: 'active' }], followUpMinutes: 30 };
     return { reply: '当前没有可执行任务。把你要做的事情交出来。', actions: [] };
   }

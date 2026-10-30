@@ -1,6 +1,6 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.2",
+  "version": "0.1.14",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
@@ -8,13 +8,21 @@
     "check": "node tools/check.cjs",
     "pack:offline": "node tools/package-portable.cjs",
     "pack": "npm run check && electron-builder --dir",
-    "dist": "npm run check && electron-builder --win",
-    "dist:portable": "npm run check && electron-builder --win portable",
+    "dist": "electron-builder --win nsis --x64 --publish never",
     "dev": "node tools/dev.cjs",
     "dev:frontend": "npm run dev --workspace frontend",
     "dev:backend": "npm run dev --workspace backend",
     "test": "node --test backend/test/*.test.cjs",
-    "test:desktop": "node tools/run-desktop-test.cjs"
+    "test:desktop": "node tools/run-desktop-test.cjs",
+    "test:conversation": "node tools/run-conversation-test.cjs",
+    "test:chat-ui": "node tools/run-chat-ui-test.cjs",
+    "test:stickers": "node tools/run-stickers-test.cjs",
+    "test:online-stickers": "node tools/run-online-stickers-test.cjs",
+    "test:lively-stickers": "node tools/run-lively-stickers-test.cjs",
+    "test:task-settings": "node tools/run-task-settings-test.cjs",
+    "test:task-list": "node tools/run-task-list-test.cjs",
+    "test:conversation-lifecycle": "node tools/run-conversation-lifecycle-test.cjs",
+    "dist:installer": "electron-builder --win nsis --x64 --publish never"
   },
   "build": {
     "appId": "com.human-dispatch.desktop",
@@ -44,8 +52,7 @@
     "win": {
       "icon": "assets/app-icon.ico",
       "target": [
-        "nsis",
-        "portable"
+        "nsis"
       ]
     },
     "nsis": {
@@ -56,9 +63,6 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "人类调度"
-    },
-    "portable": {
-      "artifactName": "Humancall-Portable-${version}-${arch}.${ext}"
     }
   },
   "devDependencies": {

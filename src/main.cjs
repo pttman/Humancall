@@ -1,3 +1,5 @@
+const chatProfile=require('../frontend/chat-profile.js');
+const conversationState=require('../frontend/conversation-state.js');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, screen, dialog, shell } = require('electron');
 const path = require('path');
 const { configureDataDirectory, readState } = require('../backend/core.cjs');
@@ -13,7 +15,6 @@ let tray;
 let bubbleWindow;
 let bubbleLoaded = false;
 let queuedBubbles = [];
-let lastPassiveNudgeAt = 0;
 let passiveTimer;
 const appIconPngPath = path.join(__dirname, '..', 'assets', 'app-icon.png');
 const appIconIcoPath = path.join(__dirname, '..', 'assets', 'app-icon.ico');
@@ -43,10 +44,10 @@ function prepareDataDirectory() {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1080,
-    height: 760,
-    minWidth: 860,
-    minHeight: 620,
+    width: 1220,
+    height: 820,
+    minWidth: 920,
+    minHeight: 640,
     backgroundColor: '#10151c',
     title: '人类调度',
     icon: appIconPath,
@@ -113,11 +114,16 @@ function positionBubble() {
   bubbleWindow.setPosition(area.x + area.width - width - 18, area.y + area.height - height - 18, false);
 }
 
+function pruneBubbles(state) {
+  const current=conversationState.bubbleState(state);queuedBubbles=queuedBubbles.filter(p=>conversationState.isBubbleLive(p,current));
+  if(bubbleWindow&&!bubbleWindow.isDestroyed()&&bubbleLoaded){bubbleWindow.webContents.send('bubble:prune',current);bubbleWindow.webContents.send('identity:update',chatProfile.get(state.settings));}
+}
 function showBubble(payload) {
   if (!bubbleWindow) return;
   if (!bubbleLoaded) { queuedBubbles.push(payload); return; }
   const currentState = readState();
-  payload = { ...payload, bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'pastel-mix' };
+  if(!conversationState.isBubbleLive(payload,conversationState.bubbleState(currentState)))return false;
+  payload = { ...payload, identity:chatProfile.get(currentState.settings), bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'pastel-mix' };
   positionBubble();
   bubbleWindow.webContents.send('bubble:show', payload);
   bubbleWindow.showInactive();
@@ -143,37 +149,8 @@ function createTray() {
 // 监管提醒统一使用自绘气泡，避免同时出现重复的系统黑色通知窗。
 function notify() {}
 
-function isWithinWorkHours(settings) {
-  const current = new Date();
-  const currentMinutes = current.getHours() * 60 + current.getMinutes();
-  const parse = (value, fallback) => {
-    const match = String(value || fallback).match(/^(\d{1,2}):(\d{2})$/);
-    return match ? Number(match[1]) * 60 + Number(match[2]) : 0;
-  };
-  return currentMinutes >= parse(settings.workStart, '09:00') && currentMinutes <= parse(settings.workEnd, '18:00');
-}
-
-function chooseSupervisionTask(tasks) {
-  const current = new Date();
-  return tasks.find((task) => task.status === 'active' && !task.isContainer) ||
-    tasks.filter((task) => !task.isContainer && ['planned', 'inbox', 'blocked'].includes(task.status) && (!task.dueAt || new Date(task.dueAt) <= current)).sort((a, b) => (a.dueAt || '9999').localeCompare(b.dueAt || '9999'))[0];
-}
-
 function passiveNudge(force = false) {
-  const state = readState();
-  if (!state.settings.notifications || (!force && state.settings.passiveNudgesEnabled === false)) return;
-  if (!force && state.settings.quietUntil && new Date(state.settings.quietUntil) > new Date()) return;
-  if (!force && !isWithinWorkHours(state.settings)) return;
-  const interval = Math.max(5, Number(state.settings.passiveNudgeMinutes) || 10) * 60 * 1000;
-  if (!force && Date.now() - lastPassiveNudgeAt < interval) return;
-  const task = chooseSupervisionTask(state.tasks || []);
-  if (!task) return;
-  const body = task.status === 'active'
-    ? `“${task.title}”还在等你汇报。现在完成到哪一步？`
-    : `下一项工作已下达：开始“${task.title}”。不要继续拖延。`;
-  lastPassiveNudgeAt = Date.now();
-  notify('人类调度 · 该干活了', body);
-  showBubble({ title: '该干活了', body, taskId: task.id, taskTitle: task.title });
+  if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('supervision:request', {force});
 }
 
 function startPassiveSupervisor() {
@@ -194,7 +171,7 @@ app.whenReady().then(async () => {
   Menu.setApplicationMenu(null);
   configureDataDirectory(dataDirectory());
   const storage = createStorageController({ initialDirectory: dataDirectory(), configPath: path.join(app.getPath('userData'), 'data-directory.txt'), encoding: 'utf16le' });
-  apiServer = createServer({ storage });
+  apiServer = createServer({ storage, onStateSaved:pruneBubbles });
   ipcMain.handle('storage:choose', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { title: '选择数据保存位置', defaultPath: storage.get().directory, properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? null : result.filePaths[0];
@@ -207,6 +184,7 @@ app.whenReady().then(async () => {
     await shell.openExternal(url.toString()); return true;
   });
   ipcMain.handle('notification:show', (_, payload) => { notify(payload.title, payload.body); showBubble(payload); return true; });
+  ipcMain.handle('bubble:clear-all',()=>{queuedBubbles=[];if(bubbleWindow&&!bubbleWindow.isDestroyed())bubbleWindow.webContents.send('bubble:clear');hideBubble();return true;});
   ipcMain.handle('bubble:hide', () => { hideBubble(); return true; });
   ipcMain.handle('bubble:show', (_, payload) => { showBubble(payload); return true; });
   ipcMain.handle('bubble:resize', (_, requestedHeight) => {
@@ -224,7 +202,7 @@ app.whenReady().then(async () => {
     return soundPath ? frontendUrl + '/assets/notification.mp3' : null;
   });
   ipcMain.handle('bubble:open-main', () => { if (bubbleWindow && !bubbleWindow.isDestroyed()) bubbleWindow.webContents.send('bubble:clear'); mainWindow.show(); mainWindow.focus(); hideBubble(); return true; });
-  ipcMain.handle('bubble:submit', (_, text) => { mainWindow.webContents.send('bubble:submit', text); hideBubble(); return true; });
+  ipcMain.handle('bubble:submit', (_, reply) => { mainWindow.webContents.send('bubble:submit', reply); hideBubble(); return true; });
   createWindow();
   createBubbleWindow();
   createTray();
