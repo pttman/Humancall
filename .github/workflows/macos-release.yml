@@ -43,7 +43,7 @@ jobs:
       - name: Verify universal bundle and native startup
         run: |
           APP="release/mac-universal/人类调度.app"
-          lipo -verify_arch x86_64 arm64 "$APP/Contents/MacOS/人类调度"
+          lipo "$APP/Contents/MacOS/人类调度" -verify_arch x86_64 arm64
           codesign --verify --deep --strict "$APP"
           node tools/macos-smoke.cjs "$APP"
       - name: Generate checksum
