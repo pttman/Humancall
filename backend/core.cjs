@@ -65,6 +65,7 @@ const defaultState = {
 
 let directory = process.env.DATA_DIR || path.join(__dirname, 'data');
 function configureDataDirectory(value) { directory = value; }
+function momentMediaDirectory(){return path.join(directory,'moment-media');}
 function statePath() { return path.join(directory, 'human-dispatch-state.json'); }
 function readState() {
   try {
@@ -266,6 +267,11 @@ function localFallback(text, tasks) {
     if (next) return { reply: `现在执行“${next.title}”。先做第一步，${next.estimatedMinutes || 30} 分钟后回来汇报。`, actions: [{ type: 'update_task', taskId: next.id, status: 'active' }], followUpMinutes: 30 };
     return { reply: '当前没有可执行任务。把你要做的事情交出来。', actions: [] };
   }
+  if (/^(我要|我打算|我计划|我准备|帮我记|帮我添加|需要)/.test(input) && !/(现在|马上|立即|\d{1,2}[:点]|\d+\s*(分钟|小时)后)/.test(input)) {
+    const existing=tasks.find(t=>t.title===input&&!['completed','cancelled'].includes(t.status));
+    const kind=/(会议|开.{0,2}会)/.test(input)?'meeting':/预约/.test(input)?'appointment':'work';
+    return {reply:`已记入清单：“${input}”，时间先留空。你想什么时候开始？`,actions:existing?[]:[{type:'create_task',title:input,kind,status:kind==='work'?'inbox':'planned'}]};
+  }
   const pieces = input.split(/[，。；;！!\n]+/).map((part) => part.trim()).filter((part) => part.length >= 2);
   const candidates = pieces.length ? pieces : [input];
   if (candidates.length > 1) {
@@ -287,4 +293,4 @@ function localFallback(text, tasks) {
 }
 
 
-module.exports = { configureDataDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };
+module.exports = { configureDataDirectory, momentMediaDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };

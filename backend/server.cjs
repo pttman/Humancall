@@ -2,7 +2,7 @@ const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
 const core = require('./core.cjs');
-const { runAgent, fingerprint } = require('./agent.cjs');
+const { chat } = require('./chat-service.cjs');
 const { createSupervisor } = require('./supervisor.cjs');
 const { createMoments } = require('./moments.cjs');
 const {searchOnlineStickers}=require('./online-stickers.cjs');
@@ -59,37 +59,12 @@ function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
       if (route === 'GET /api/settings/prompts') return send(200, { defaultPrompt: core.DEFAULT_SYSTEM_PROMPT, tonePrompts: core.TONE_PROMPTS });
       if (route === 'GET /api/backup') { const snapshot = core.readState(); snapshot.settings = require('../frontend/model-presets.js').redact(snapshot.settings); return send(200, snapshot); }
       if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); saveState(state); return send(200, { canceled: false, state }); }
-      if (route === 'POST /api/ai/chat') {
-        const payload = await body(req); const state = core.readState();
-        const settings = { ...state.settings, ...(payload.settings || {}) };
-        settings.apiKey = settings.apiKey || process.env.MODEL_API_KEY || '';
-        if (process.env.MODEL_BASE_URL && !payload.settings) settings.baseUrl = process.env.MODEL_BASE_URL;
-        if (process.env.MODEL_NAME && !payload.settings) settings.model = process.env.MODEL_NAME;
-        if (typeof payload.text !== 'string' || payload.text.length > 12000 || (payload.messages !== undefined && !Array.isArray(payload.messages))) return send(400, { error: '消息格式不正确或过长' });
-        if (settings.apiKey && (!payload.settings || payload.testAgent === true)) {
-          const before = fingerprint(state);
-          try {
-            const result = await runAgent({ settings, text: payload.text, messages: payload.messages || state.messages, state, context:payload.context, mode:payload.testAgent===true?'connection_test':'chat' });
-            const latest = core.readState();
-            if (fingerprint(latest) !== before) return send(409, { error: '执行期间任务或设置已更改，本轮未提交，请重新发送' });
-            const { draft, dirty, ...response } = result;
-            if (payload.testAgent === true) return send(200, { ...response, actions: [], dryRun: true });
-            if (dirty || result.contextDirty) {
-              const committed = { ...latest, tasks:draft.tasks, reminders:draft.reminders, projects:draft.projects, supervisionEvents:draft.supervisionEvents, agentContext:draft.agentContext };
-              const changed = new Set(result.actions.map(a => a.taskId).filter(Boolean));
-              const next = committed.tasks.find(t => changed.has(t.id) && t.status === 'active' && !t.isContainer) || committed.tasks.find(t => t.status === 'active' && !t.isContainer);
-              if (!result.question && result.followUpMinutes && next) {
-                committed.supervisionEvents = committed.supervisionEvents.filter(e => e.taskId !== next.id || e.sent);
-                committed.supervisionEvents.push({ id: result.agent.id, taskId:next.id, type:'check_in', scheduledAt:new Date(Date.now()+result.followUpMinutes*60000).toISOString(), sent:false, createdAt:new Date().toISOString() });
-              }
-              saveState(committed); response.state = committed; response.applied = true;
-            }
-            if (!response.applied) { response.state = latest; response.applied = true; }
-            return send(200, response);
-          } catch (error) { return send(502, { error: error.message + '；本轮未保存任何修改。请根据上述错误检查 API 配置，或稍后重试。' }); }
-        }
-        try { return send(200, { ...await core.callModel({ settings, messages: payload.messages || [], tasks: state.tasks, reminders: state.reminders }), source: 'model' }); }
-        catch (error) { return send(200, { ...core.localFallback(payload.text, state.tasks), source: 'local', warning: error.message }); }
+      if (route === 'POST /api/ai/chat') return send(200, await chat(await body(req), { saveState }));
+      if(req.method==='GET'&&/^\/api\/moment-media\/[a-f0-9]{64}\.(jpg|png|webp)$/.test(url.pathname)){
+        const name=url.pathname.split('/').at(-1);const data=await fs.promises.readFile(path.join(core.momentMediaDirectory(),name)).catch(()=>null);
+        if(data){res.writeHead(200,{'Content-Type':name.endsWith('.jpg')?'image/jpeg':name.endsWith('.png')?'image/png':'image/webp','Cache-Control':'private, max-age=86400','X-Content-Type-Options':'nosniff'});return res.end(data);}
+        const image=core.readState().moments.map(m=>require('../frontend/moment-media.js').get(m.image)).find(i=>i?.id==='remote:'+name);
+        if(image){res.writeHead(302,{Location:image.remoteUrl});return res.end();}return send(404,{error:'图片不存在'});
       }
       if (url.pathname.startsWith('/api/')) return send(404, { error: 'API 不存在' });
       if (!serveFrontend || req.method !== 'GET') return send(404, { error: '页面不存在' });
@@ -97,12 +72,12 @@ function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
       const base = path.resolve(__dirname, asset ? '../assets' : '../frontend');
       const relative = decodeURIComponent(asset ? url.pathname.slice(8) : url.pathname === '/' ? 'index.html' : url.pathname.slice(1));
       const target = path.resolve(base, relative);
-      if (!target.startsWith(base + path.sep) || !/\.(html|css|js|png|ico|mp3|gif|svg|webp)$/i.test(target)) return send(404, { error: '文件不存在' });
+      if (!target.startsWith(base + path.sep) || !/\.(html|css|js|png|jpg|jpeg|ico|mp3|gif|svg|webp)$/i.test(target)) return send(404, { error: '文件不存在' });
       const data = await fs.promises.readFile(target).catch(error => {
         if (asset && relative === 'notification.mp3' && process.resourcesPath) return fs.promises.readFile(path.join(process.resourcesPath, 'assets', 'notification.mp3'));
         throw error;
       });
-      const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.mp3': 'audio/mpeg', '.png': 'image/png', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
+      const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.mp3': 'audio/mpeg', '.png': 'image/png', '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml' };
       res.writeHead(200, { 'Content-Type': types[path.extname(target)] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff' }); res.end(data);
     } catch (error) { send(error.status || (error.code === 'ENOENT' ? 404 : 500), { error: error.message }); }
   });

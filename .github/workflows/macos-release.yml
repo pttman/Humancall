@@ -6,7 +6,7 @@ on:
       release_tag:
         description: Existing Release tag to receive the macOS installer
         required: true
-        default: v0.1.18
+        default: v0.1.19
         type: string
 
 permissions:
@@ -22,6 +22,8 @@ jobs:
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag }}
       - uses: actions/setup-node@v4
         with:
           node-version: '22'

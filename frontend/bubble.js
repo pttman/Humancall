@@ -4,20 +4,14 @@ let bubbleItems = [];
 let activeIndex = 0;
 let switching = false;
 
-const defaultActions = [
-  { label: '已完成', message: '已完成' },
-  { label: '阻塞', message: '阻塞了' },
-  { label: '换一项工作', message: '换一项工作' },
-  { label: '再给我 10 分钟', message: '再给我10分钟' }
-];
-
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c])); }
 
 async function resizeToContent() {
   const shell = $('.bubble-shell');
   if (!shell) return;
   const style=getComputedStyle(shell);
-  const desiredHeight = Math.ceil(shell.getBoundingClientRect().height + parseFloat(style.marginTop) + parseFloat(style.marginBottom) + 2);
+  // offsetHeight excludes the scale/translation used by the card switching animation.
+  const desiredHeight = Math.ceil(shell.offsetHeight + parseFloat(style.marginTop) + parseFloat(style.marginBottom));
   await window.humanDispatch.resizeBubble(desiredHeight);
 }
 
@@ -38,14 +32,13 @@ function currentBubble() { return bubbleItems[activeIndex] || null; }
 
 function renderQuickActions(actions) {
   const container = $('#quickActions');
-  const items = Array.isArray(actions) ? actions : defaultActions;
+  const items = Array.isArray(actions) ? actions.filter(item=>item && typeof item.message==='string' && item.message.trim()).slice(0,3) : [];
+  container.hidden = items.length === 0;
   container.innerHTML = items.map((item) => {
-    const label = String(item.label || item.message || '继续');
-    if (item.action === 'open-main') return `<button data-action="open-main">${escapeHtml(label)}</button>`;
+    const label = String(item.label || item.message);
     return `<button data-message="${escapeHtml(item.message || label)}">${escapeHtml(label)}</button>`;
   }).join('');
   container.querySelectorAll('[data-message]').forEach((button) => button.addEventListener('click', () => send(button.dataset.message)));
-  container.querySelectorAll('[data-action="open-main"]').forEach((button) => button.addEventListener('click', () => { bubbleItems = []; window.humanDispatch.openMain(); }));
 }
 
 function renderCurrent(playSound = false, direction = 0) {

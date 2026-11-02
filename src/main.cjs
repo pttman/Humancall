@@ -108,11 +108,15 @@ function findAlertSound() {
   return candidates[0] || null;
 }
 
-function positionBubble() {
+function positionBubble(requestedHeight) {
   if (!bubbleWindow) return;
   const area = screen.getPrimaryDisplay().workArea;
-  const [width, height] = bubbleWindow.getSize();
-  bubbleWindow.setPosition(area.x + area.width - width - 18, area.y + area.height - height - 18, false);
+  const [currentWidth, currentHeight] = bubbleWindow.getSize();
+  const width = Math.min(currentWidth, area.width - 36);
+  const height = Math.max(210, Math.min(520, area.height - 36, Math.ceil(Number(requestedHeight) || currentHeight)));
+  // Move and resize atomically: Windows may otherwise move the resized window back into view.
+  bubbleWindow.setBounds({x:area.x + area.width - width - 18, y:area.y + area.height - height - 18, width, height}, false);
+  return height;
 }
 
 function pruneBubbles(state) {
@@ -199,13 +203,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('bubble:show', (_, payload) => { showBubble(payload); return true; });
   ipcMain.handle('bubble:resize', (_, requestedHeight) => {
     if (!bubbleWindow || bubbleWindow.isDestroyed()) return false;
-    const area = screen.getPrimaryDisplay().workArea;
-    const maxHeight = Math.min(520, Math.max(210, area.height - 30));
-    const height = Math.max(210, Math.min(maxHeight, Number(requestedHeight) || 270));
-    const [width] = bubbleWindow.getSize();
-    bubbleWindow.setSize(width, height, false);
-    positionBubble();
-    return height;
+    return positionBubble(requestedHeight);
   });
   ipcMain.handle('audio:alert-url', () => {
     const soundPath = findAlertSound();
@@ -215,6 +213,8 @@ app.whenReady().then(async () => {
   ipcMain.handle('bubble:submit', (_, reply) => { mainWindow.webContents.send('bubble:submit', reply); hideBubble(); return true; });
   createWindow();
   createBubbleWindow();
+  screen.on('display-metrics-changed', () => positionBubble());
+  screen.on('display-removed', () => positionBubble());
   createTray();
   startPassiveSupervisor();
 });

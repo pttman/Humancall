@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="500" viewBox="0 0 1200 500" fill="none">
+  <defs>
+    <filter id="pigment" x="-20%" y="-60%" width="140%" height="220%" color-interpolation-filters="sRGB">
+      <feTurbulence type="fractalNoise" baseFrequency=".013 .034" numOctaves="3" seed="12" result="grain"/>
+      <feDisplacementMap in="SourceGraphic" in2="grain" scale="38" xChannelSelector="R" yChannelSelector="G"/>
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <linearGradient id="lilac"><stop stop-color="#c8b9e8" stop-opacity=".4"/><stop offset=".65" stop-color="#ded4ef" stop-opacity=".2"/><stop offset="1" stop-color="#e9d9ed" stop-opacity="0"/></linearGradient>
+    <linearGradient id="blue"><stop stop-color="#c1deed" stop-opacity="0"/><stop offset=".55" stop-color="#b8d9eb" stop-opacity=".3"/><stop offset="1" stop-color="#c5cceb" stop-opacity=".4"/></linearGradient>
+  </defs>
+  <g filter="url(#pigment)" stroke-linecap="round">
+    <path d="M-80 125C120 10 265 160 485 95S810 165 1050 60" stroke="url(#lilac)" stroke-width="120"/>
+    <path d="M230 215C480 170 620 35 870 160S1120 90 1310 155" stroke="url(#blue)" stroke-width="135"/>
+    <path d="M-30 235C130 130 270 285 460 220" stroke="#e6d8ed" stroke-opacity=".14" stroke-width="65"/>
+  </g>
+</svg>

@@ -1,0 +1,1 @@
+require('./desktop-smoke.cjs');

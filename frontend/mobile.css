@@ -1,0 +1,53 @@
+/* Phone navigation and layout; desktop rules remain in the existing stylesheets. */
+.mobile-nav,.mobile-back,.mobile-settings-entry{display:none}
+@media(max-width:760px),(max-height:600px) and (pointer:coarse){
+  :root{--mobile-nav-height:60px}
+  :root:not([data-theme="midnight-blue"]){--panel:#fff;--panel-2:#f1f3f1;--text:#202322;--line:#e3e6e3;--muted:#66716c;--green:#07a35a}
+  html,body{width:100%;height:100%;min-width:0;overflow:hidden;overscroll-behavior:none}
+  body{font-size:15px;-webkit-tap-highlight-color:transparent}
+  :root .messenger-shell{display:block;width:100%;height:var(--mobile-height,100dvh);min-width:0;min-height:0;padding:0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));margin:0;border:0;border-radius:0;overflow:hidden;background:var(--panel)}
+  :root .messenger-shell .app-rail{display:none}
+  :root .messenger-shell .conversation-sidebar{display:flex;flex-direction:column;width:100%;height:100%;border:0;background:var(--panel);padding-top:env(safe-area-inset-top);min-width:0}
+  .conversation-heading{padding:25px 20px 18px}.conversation-heading h1{font-size:25px}.conversation-heading>span{font-size:13px}
+  :root .messenger-shell .conversation-search{margin:0 16px 15px;padding:10px 12px;min-height:44px;border-radius:7px}
+  :root .messenger-shell .conversation-item{padding:18px 20px;min-height:90px;border-bottom:1px solid var(--line);gap:15px}
+  :root .messenger-shell .contact-avatar{width:52px;height:52px}.conversation-line strong{font-size:17px}.conversation-preview{font-size:14px;margin-top:6px}
+  :root .messenger-shell .conversation-label{padding-left:20px;font-size:12px}
+  :root .messenger-shell .today-plan-button{margin:22px 16px;width:calc(100% - 32px);padding:15px;font-size:15px;border-radius:6px;background:var(--panel-2)}
+  :root .messenger-shell .messenger-workspace{display:none;width:100%;height:100%;min-width:0;padding:0;margin:0;grid-template-columns:minmax(0,1fr);gap:0}
+  body[data-mobile-page="chat"] .messenger-shell .conversation-sidebar,body[data-mobile-page="moments"] .messenger-shell .conversation-sidebar,body[data-mobile-page="tasks"] .messenger-shell .conversation-sidebar{display:none}
+  body[data-mobile-page="chat"] .messenger-shell .messenger-workspace,body[data-mobile-page="moments"] .messenger-shell .messenger-workspace,body[data-mobile-page="tasks"] .messenger-shell .messenger-workspace{display:block}
+  :root .messenger-shell .main-column{height:100%;min-width:0;min-height:0}
+  :root .messenger-shell .chat-card{height:100%;width:100%;min-width:0;min-height:0;border:0;border-radius:0;display:flex;flex-direction:column}
+  :root .messenger-shell .chat-heading{gap:8px;min-height:64px;padding:calc(8px + env(safe-area-inset-top)) 12px 8px;border-radius:0;flex-shrink:0;background:var(--panel)}
+  .mobile-back{display:grid;place-items:center;background:transparent;border:0;color:var(--text);width:32px;min-width:32px;height:44px;padding:0;font-size:29px}
+  :root .messenger-shell .companion-header-avatar{width:35px;height:35px;margin-right:0;flex:none}
+  :root .messenger-shell .chat-contact h2{font-size:17px}.chat-contact p{font-size:10px;max-width:32vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .chat-heading-actions{gap:2px}.chat-heading-actions .badge{display:none}.chat-header-button{min-width:37px;min-height:42px;padding:8px!important}.chat-header-button>span{display:none}
+  :root .messenger-shell .chat-messages{flex:1;min-height:0;padding:18px 12px;overscroll-behavior:contain;overflow-x:hidden;-webkit-overflow-scrolling:touch}
+  :root .messenger-shell .message{gap:8px;margin-bottom:19px;max-width:100%}
+  :root .messenger-shell .message .bubble{font-size:15px;line-height:1.65;padding:10px 12px;max-width:calc(100vw - 92px);overflow-wrap:anywhere}
+  :root .messenger-shell .message .avatar{width:36px;height:36px;flex:none}.message .message-content{min-width:0;max-width:calc(100vw - 75px)}
+  :root .messenger-shell .chat-form{flex:none;display:grid;grid-template-columns:minmax(0,1fr) 64px;gap:6px 8px;padding:8px 10px 10px;border-top:1px solid var(--line);min-height:0;background:var(--panel-2)}
+  :root .messenger-shell .composer-toolbar{grid-column:1/-1;padding:0;min-height:29px;gap:14px}.composer-tool{min-height:32px;font-size:12px}.composer-private,.composer-footer>span{display:none}
+  :root .messenger-shell #chatInput{grid-column:1;resize:none;min-height:43px;height:43px;max-height:112px;padding:9px 10px;font-size:16px;line-height:24px;border-radius:5px;background:var(--panel);border:1px solid var(--line);width:100%;overflow-y:auto}
+  :root .messenger-shell .composer-footer{grid-column:2;display:flex;align-items:end;padding:0;margin:0;min-height:0}.send-button{min-width:64px;width:64px;height:43px;padding:8px;font-size:15px;border-radius:5px}
+  :root .messenger-shell .send-button{min-width:64px;width:64px;max-width:64px;height:43px;padding:8px;font-size:15px;border-radius:5px}
+  .composer-popup{bottom:100%;left:10px;max-width:calc(100vw - 20px);z-index:6}.typing-indicator{padding:3px 18px;font-size:12px;flex:none}
+  .mobile-nav{position:fixed;inset:auto 0 0;z-index:15;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));height:calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));padding:5px 7px calc(4px + env(safe-area-inset-bottom));border-top:1px solid var(--line);background:var(--panel-2);color:var(--text)}
+  .mobile-nav button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border:0;background:transparent;color:var(--muted);font-size:10px;min-width:0;min-height:44px;padding:2px}.mobile-nav svg{width:24px;height:24px}.mobile-nav button.is-active{color:var(--green);font-weight:600}
+  body.mobile-keyboard .mobile-nav{display:none}body.mobile-keyboard .messenger-shell{padding-bottom:0}
+  :root .messenger-shell .side-column{position:fixed;inset:0 0 calc(var(--mobile-nav-height) + env(safe-area-inset-bottom));width:100%;height:auto;max-width:none;border:0;z-index:14;padding:calc(12px + env(safe-area-inset-top)) 14px 24px;overflow-y:auto;box-shadow:none;transform:none;border-radius:0;background:var(--panel)}
+  .task-panel-backdrop{display:none!important}.task-panel-heading{padding:0 0 12px}.command-card{padding:15px!important}.current-task{font-size:20px!important;line-height:1.45}.command-actions{display:flex;flex-wrap:wrap;gap:8px}.command-actions button{min-height:42px}
+  :root .messenger-shell .task-list .task-item{padding:16px 0;gap:10px}.task-title{font-size:15px!important;line-height:1.65!important}.task-sub{font-size:13px!important}.task-toolbar{display:grid!important;grid-template-columns:minmax(0,1fr) 110px;gap:8px}.task-toolbar input{min-width:0}.task-toolbar #toggleCompletedButton{grid-column:1/-1;justify-self:end}.task-actions{flex-wrap:wrap!important;gap:8px!important}.task-actions button,.task-edit{min-height:38px}.reminder-controls{grid-template-columns:1fr 1fr!important}.reminder-delete{grid-column:1/-1}
+  .modal{padding:0!important;align-items:stretch!important;z-index:30}.modal>.modal-card{width:100%!important;max-width:none!important;height:var(--mobile-height,100dvh);max-height:var(--mobile-height,100dvh)!important;margin:0!important;border:0!important;border-radius:0!important;padding:calc(18px + env(safe-area-inset-top)) 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;background:var(--panel,#fff);color:var(--text,#202322)}
+  .modal-header h2{font-size:20px}.modal-header .icon-button{min-width:44px;min-height:44px}.settings-form input,.settings-form select,.settings-form textarea,.records-filters input,.records-filters select{font-size:16px!important;min-height:44px}.form-grid{grid-template-columns:1fr!important}.modal-actions{gap:10px;flex-wrap:wrap}.modal-actions button{min-height:44px}.settings-scroll{padding-right:5px!important}.settings-people-cards{grid-template-columns:1fr!important}.self-statistics{gap:10px}.mobile-settings-entry{display:block;width:100%;padding:15px;margin:0 0 20px;border:1px solid var(--line);border-radius:5px;background:var(--panel-2);color:var(--text);text-align:left;font-size:15px}
+  #clearChatModal,#configReminderModal{padding:20px!important;align-items:center!important}#clearChatModal>.modal-card,#configReminderModal>.modal-card{height:auto;max-height:85dvh!important;border-radius:10px!important;padding:22px!important}
+  .companion-card .companion-cover{margin-top:calc(-18px - env(safe-area-inset-top));height:130px}.companion-close{top:calc(14px + env(safe-area-inset-top))!important}.records-filters{grid-template-columns:1fr 1fr!important}.records-search{grid-column:1/-1}.records-tabs{overflow:auto;flex:none}.record-details{min-height:80px}.record-detail p{font-size:14px}
+  .moments-heading{padding:calc(16px + env(safe-area-inset-top)) 16px 12px}.moments-heading p{font-size:11px}.moments-cover{height:170px}.moment-toolbar{padding:12px 14px;flex-wrap:wrap}.moment-feed{width:100%;padding:0 16px}.moment-post{gap:10px;grid-template-columns:38px minmax(0,1fr)}.moment-post p{font-size:15px}.moment-people button{min-height:36px}.moment-period button{min-height:36px}
+  .toast{bottom:calc(80px + env(safe-area-inset-bottom));max-width:calc(100vw - 32px);font-size:14px}
+  #settingsModal .modal-header{background:var(--panel,#fff)}#settingsModal input,#settingsModal select,#settingsModal textarea{background:var(--panel,#fff);border-color:var(--line,#ddd);color:var(--text,#202322);border-radius:5px}#settingsModal .modal-actions{background:var(--panel,#fff);padding-top:12px}#settingsModal button.primary{background:#07a35a;color:#fff;border-color:#07a35a}#settingsModal button.secondary{border-color:var(--line,#ddd);background:var(--panel-2,#f5f5f5);color:var(--text,#202322)}
+  :root .modal>.modal-card{height:var(--mobile-height,100dvh)!important;max-height:var(--mobile-height,100dvh)!important;background:var(--panel,#fff)}
+  :root #settingsModal>.modal-card{height:var(--mobile-height,100dvh)!important;max-height:var(--mobile-height,100dvh)!important;background:var(--panel,#fff)}
+  :root #clearChatModal>.modal-card,:root #configReminderModal>.modal-card{height:auto!important;max-height:85dvh!important}
+}

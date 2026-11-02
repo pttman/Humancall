@@ -1,0 +1,3 @@
+const {app}=require('electron');
+const path=require('node:path');
+app.whenReady().then(async()=>{try{const {searchPhotos,cachePhoto}=require('../backend/moment-images.cjs');const photos=await searchPhotos({query:'coffee cup'});if(!photos.length)throw Error('没有在线候选');const directory=path.resolve(__dirname,'../work/api-photo-preview');const image=await cachePhoto(photos[0],{cacheDirectory:directory});console.log(JSON.stringify({candidates:photos.length,label:image.label,artist:image.artist,license:image.license,file:path.join(directory,image.id.slice(7))}));app.exit(0);}catch(error){console.error(error.message);app.exit(1);}});

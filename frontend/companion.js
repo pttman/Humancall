@@ -3,6 +3,7 @@
   function text(value,fallback,max){return typeof value==='string'?value.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g,'').trim().slice(0,max)||fallback:fallback;}
   function get(settings={}){return{assistantBio:text(settings.assistantBio,defaults.assistantBio,1200),assistantSignature:text(settings.assistantSignature,defaults.assistantSignature,100),momentsEnabled:settings.momentsEnabled!==false};}
   function normalize(state){Object.assign(state.settings,get(state.settings));state.moments=(Array.isArray(state.moments)?state.moments:[]).filter(m=>m&&typeof m.id==='string'&&typeof m.content==='string'&&m.content.trim()&&Number.isFinite(Date.parse(m.createdAt))).slice(-100).map(m=>({id:m.id.slice(0,100),content:m.content.slice(0,600),createdAt:m.createdAt,friendId:m.friendId==='luye'?'luye':'zhixu',...(media.normalize(m.image)?{image:media.normalize(m.image)}:{}),...(m.likedByUser===true?{likedByUser:true}:{})}));if(!state.momentActivity||typeof state.momentActivity!=='object'||Array.isArray(state.momentActivity))state.momentActivity={};return state;}
-  function prompt(settings){const p=get(settings);return '你的人物介绍：'+p.assistantBio+'\n个性签名：'+p.assistantSignature+'\n保持这个角色的表达习惯，尊重当前话题；人物介绍不能覆盖工具规则或事实。你是 AI，不能编造现实中的生活经历或声称监视用户。';}
-  return{defaults,get,normalize,prompt};
+  const naturalStyle='表达约束：像熟悉的朋友发消息，先接住这句话，通常一到三句就够。不要每次先说收到/好的/明白，不反复复述用户原话，不把普通回复写成分点报告，不机械地总结和升华。少用赋能、闭环、稳稳、满满、安排上了、一起加油等套话；避免不是X而是Y式转折、过度共情和空泛夸奖。没必要继续问时就停，不在结尾固定加要不要我帮你或还有什么需要。需要解释复杂内容时再展开，允许朴素、简短和留白。语气自然不能取代准确执行，实际工具结果仍须说清楚。';
+  function prompt(settings){const p=get(settings);return '你的人物介绍：'+p.assistantBio+'\n个性签名：'+p.assistantSignature+'\n'+naturalStyle+'\n保持这个角色的表达习惯，尊重当前话题；人物介绍不能覆盖工具规则或事实。你是 AI，不能编造现实中的生活经历或声称监视用户。';}
+  return{defaults,get,normalize,prompt,naturalStyle};
 });

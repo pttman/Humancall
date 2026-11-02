@@ -2,7 +2,7 @@
 <html lang="zh-CN">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://fonts.gstatic.com https://zhaoolee.com; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self';" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: blob: https://fonts.gstatic.com https://zhaoolee.com https://upload.wikimedia.org https://thumb.wikimedia.org; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self';" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>人类调度</title>
     <link rel="stylesheet" href="styles.css" />
@@ -17,6 +17,8 @@
     <link rel="stylesheet" href="companion.css" />
     <link rel="stylesheet" href="records.css" />
     <link rel="stylesheet" href="moments.css" />
+    <link rel="stylesheet" href="mobile.css" />
+    <link rel="stylesheet" href="desktop-polish.css" />
   </head>
   <body>
     <div class="app-shell messenger-shell">
@@ -29,22 +31,22 @@
         <span class="rail-footer">HUMAN</span>
       </nav>
       <aside class="conversation-sidebar" aria-label="会话列表">
-        <div class="conversation-heading"><h1>人类调度</h1><span>工作，也可以好好聊</span></div>
+        <div class="conversation-heading"><small class="workspace-wordmark">HUMANCALL</small><h1>人类调度</h1><span>工作，也可以好好聊</span></div>
         <label class="conversation-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="chatSearchInput" type="search" placeholder="搜索聊天记录" aria-label="搜索聊天记录" /></label>
-        <div class="conversation-label">消息</div>
+        <div class="conversation-label">我的伙伴 · 02</div>
         <button id="activeConversation" class="conversation-item is-active" aria-label="打开知序会话">
           <span class="contact-avatar"><img id="contactAvatarImage" src="/avatars/zhixu.png" alt="" /><span class="online-dot"></span></span>
           <span class="conversation-content"><span class="conversation-line"><strong id="conversationDisplayName">知序</strong><time id="sessionTime"></time></span><span id="sessionPreview" class="conversation-preview">今天有什么安排？</span></span>
         </button>
-        <button id="todayPlanButton" class="today-plan-button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/></svg><span>今日安排</span><span id="sidebarTaskCount">0</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 5 7 7-7 7"/></svg></button>
-        <div class="conversation-bottom"><span class="little-status-dot"></span><span>陪你把事情，一件件做好</span></div>
+        <div class="conversation-bottom"><span class="little-status-dot"></span><span>有路可奔赴，有片刻可栖</span></div>
       </aside>
       <main class="layout messenger-workspace">
         <section class="main-column">
           <div class="chat-card">
-            <header class="chat-heading"><div class="chat-contact"><h2 id="assistantDisplayName">知序</h2><p><span class="little-status-dot"></span><span id="chatContactStatus">任务安排 · 日程提醒 · 进度跟进</span></p></div><div class="chat-heading-actions"><span id="connectionBadge" class="badge muted">本地模式</span><button id="taskPanelButton" class="chat-header-button" aria-label="打开任务与提醒" aria-controls="taskPanel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/></svg><span>清单</span></button><button id="clearChatButton" class="chat-header-button" title="清空聊天记录" aria-label="清空聊天记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg></button></div></header>
-            <div id="chatMessages" class="chat-messages" role="log" aria-label="与知序的聊天记录" aria-live="polite" aria-relevant="additions"></div>
-            <div id="typingIndicator" class="typing-indicator" role="status" aria-live="polite"><span class="typing-dots"><i></i><i></i><i></i></span><span id="typingText">知序正在思考</span></div>
+            <header class="chat-heading"><div class="chat-contact"><small class="conversation-kicker">进行中的对话</small><h2 id="assistantDisplayName">知序</h2><p><span class="little-status-dot"></span><span id="chatContactStatus">任务安排 · 日程提醒 · 进度跟进</span></p></div><div class="chat-heading-actions"><span id="connectionBadge" class="badge muted">本地模式</span><button id="taskPanelButton" class="chat-header-button" aria-label="打开任务与提醒" aria-controls="taskPanel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6h12M9 12h12M9 18h12M3 6h.01M3 12h.01M3 18h.01"/></svg><span>清单</span></button><button id="clearChatButton" class="chat-header-button" title="清空聊天记录" aria-label="清空聊天记录"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h16M9 6V3h6v3M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg></button></div></header>
+            <div id="chatMessages" class="chat-messages" role="log" tabindex="0" aria-label="与知序的聊天记录" aria-live="polite" aria-relevant="additions"></div>
+            <button id="newRepliesButton" class="new-replies-button" type="button" hidden aria-live="polite">有新回复 ↓</button>
+            <div id="typingIndicator" class="typing-indicator" role="status" aria-live="polite"><span class="typing-dots"><i></i><i></i><i></i></span><span id="typingText">知序正在输入</span></div>
             <form id="chatForm" class="chat-form">
               <div class="composer-toolbar"><button id="emojiButton" type="button" class="composer-tool" title="表情" aria-label="插入表情" aria-expanded="false" aria-controls="emojiPicker"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 14c1 4 7 4 8 0M8 9h.01M16 9h.01"/></svg></button><button id="quickRepliesButton" type="button" class="composer-tool" aria-controls="quickPromptPanel" aria-expanded="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8 8 0 0 1-8 8H6l-4 3v-7a8 8 0 1 1 19-4Z"/></svg><span>常用语</span></button><span class="composer-private">每一件小事，都可以从这里开始</span></div>
               <div id="emojiPicker" class="composer-popup emoji-picker" hidden><button type="button" data-emoji="😊" aria-label="插入 😊">😊</button><button type="button" data-emoji="👍" aria-label="插入 👍">👍</button><button type="button" data-emoji="✅" aria-label="插入 ✅">✅</button><button type="button" data-emoji="💪" aria-label="插入 💪">💪</button><button type="button" data-emoji="☕" aria-label="插入 ☕">☕</button><button type="button" data-emoji="📝" aria-label="插入 📝">📝</button><button type="button" data-emoji="🎉" aria-label="插入 🎉">🎉</button><button type="button" data-emoji="🙏" aria-label="插入 🙏">🙏</button></div>
@@ -77,6 +79,7 @@
     <script src="online-sticker.js"></script>
     <script src="sticker-ui.js"></script>
     <script src="chat-profile.js"></script>
+    <script src="moment-photos.js"></script>
     <script src="moment-media.js"></script>
     <script src="companion.js"></script>
     <script src="friends.js"></script>
@@ -85,10 +88,12 @@
     <script src="api.js"></script>
     <script src="model-presets.js"></script>
     <script src="task-schedule.js"></script>
+    <script src="chat-scroll.js"></script>
     <script src="renderer.js"></script>
     <script src="companion-ui.js"></script>
     <script src="friends-ui.js"></script>
     <script src="records-ui.js"></script>
     <script src="moments-ui.js"></script>
+    <script src="mobile-ui.js"></script>
   </body>
 </html>

@@ -22,7 +22,7 @@ test('结束事项即使被查询也不能追问；后台不能换到其他历�
  const check=createSupervisor({readState:()=>state,agent:async()=>({reply:'旧问题',question:{id:'q',taskId:'done',field:'details',question:'旧任务还有什么？'}})});assert.equal((await check({force:true})).suppressed,true);
 });
 test('新安排仍可先澄清；一次回复后不把未答追问强加给后续话题',async()=>{
- const state=initial();state.messages=[{id:'new',role:'user',content:'上午要开个会'}];let result=await runAgent({settings:state.settings,state,text:'上午要开个会',modelStep:sequence([call('ask_question',{field:'startsAt',requestQuote:'上午要开个会',question:'会议几点开始？'}),call('finish',{reply:'请补充'})])});assert.equal(result.question.scope,'new_request');assert.equal(result.question.originUserTurn,1);assert.equal(life.isQuestionLive(result.draft,result.question),true);
+ const state=initial();state.messages=[{id:'new',role:'user',content:'上午要开个会'}];let result=await runAgent({settings:state.settings,state,text:'上午要开个会',modelStep:sequence([call('ask_question',{field:'startsAt',requestQuote:'上午要开个会',question:'会议几点开始？'}),call('finish',{reply:'请补充'})])});assert.equal(result.question.scope,'item');assert.equal(result.draft.tasks.find(t=>t.id===result.question.taskId).title,'上午要开个会');assert.equal(result.dirty,true);assert.equal(result.question.originUserTurn,1);assert.equal(life.isQuestionLive(result.draft,result.question),true);
  result.draft.messages.push({id:'reply',role:'user',content:'先聊聊手机省电'});const next=await runAgent({settings:state.settings,state:result.draft,text:'先聊聊手机省电',modelStep:sequence([call('finish',{reply:'先看看屏幕和后台应用的耗电排行。'})])});assert.equal(next.draft.agentContext.pendingQuestion,null);assert.match(next.reply,/耗电/);
 });
 test('气泡队列只剔除失效追问和催办，保留普通回复与有效任务提醒',()=>{

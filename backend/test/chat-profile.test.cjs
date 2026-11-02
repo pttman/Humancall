@@ -10,3 +10,7 @@ test('头像只使用内置路径或有上限的位图数据，拒绝任意地�
 test('模型仅接收双方显示名，不会发送头像图像数据',async()=>{
  const settings={assistantName:'小序',userName:'小林',assistantAvatar:png,userAvatar:png};const state={settings,tasks:[],reminders:[],projects:[],messages:[],supervisionEvents:[]};const result=await runAgent({settings,state,text:'你好',modelStep:async history=>{assert.match(history[0].content,/小序/);assert.match(history[0].content,/小林/);assert.ok(!JSON.stringify(history).includes(png));return{role:'assistant',tool_calls:[{id:'finish',type:'function',function:{name:'finish',arguments:JSON.stringify({reply:'你好，我是小序。',stickerMood:'none'})}}]};}});assert.equal(result.reply,'你好，我是小序。');
 });
+
+test('两位伙伴可保存原版头像并恢复新默认，个人头像不接受伙伴的归档路径',()=>{
+ for(const id of ['zhixu','luye']){const settings={assistantFriendId:id};const classic=profile.classicAvatar(settings);assert.equal(profile.get({...settings,assistantAvatar:classic}).assistantAvatar,classic);assert.equal(profile.avatar(classic,'user'),profile.defaults.userAvatar);assert.equal(classic,profile.defaultsFor(settings).assistantAvatar);}
+});

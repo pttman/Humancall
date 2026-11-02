@@ -6,6 +6,7 @@ let chatSearchQuery = '';
 let chatClearing=false;
 let friendSwitching=false;
 let stateSaveQueue=Promise.resolve();
+const chatScroll=window.createChatScroll({container:$('#chatMessages'),button:$('#newRepliesButton'),onJump:()=>{chatSearchQuery='';$('#chatSearchInput').value='';renderMessages();}});
 
 let toastTimer;
 let pendingDeleteKey = '';
@@ -20,7 +21,7 @@ const now = () => new Date().toISOString();
 const formatDate = (value) => value ? new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value)) : '';
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[c]));
 const statusText = { inbox: '收件箱', planned: '待执行', active: '执行中', blocked: '阻塞', waiting: '等待中', completed: '已完成', cancelled: '已取消' };
-const themeLabels = { 'pastel-mix': '微信浅色 · 默认主题', 'midnight-blue': '微信深色 · 夜间主题', 'paper-focus': '纸张专注 · 浅色工作台' };
+const themeLabels = { 'pastel-mix': '淡墨紫蓝 · 默认主题', 'midnight-blue': '夜色紫蓝 · 深色主题', 'paper-focus': '纸张专注 · 浅色工作台' };
 
 async function save() { window.conversationState.reconcile(state);window.friends.normalize(state);const snapshot=structuredClone(state);const request=stateSaveQueue.catch(()=>{}).then(()=>window.humanDispatch.saveState(snapshot));stateSaveQueue=request;await request;window.companionUI?.schedule(); }
 
@@ -55,31 +56,28 @@ function syncComposer() { $('#chatInput').disabled=agentBusy||friendSwitching;$(
 function renderMessages() {
   const container = $('#chatMessages');
   const identity=renderIdentity();
-  const wasNearBottom=container.scrollHeight-container.scrollTop-container.clientHeight<100, previousScroll=container.scrollTop;
+  chatScroll.beforeRender((state.activeFriendId||'zhixu')+'|'+chatSearchQuery,Boolean(chatSearchQuery));
   const latest=state.messages.at(-1);
   $('#sessionPreview').textContent=latest?.kind==='sticker'?'[表情包] '+(window.resolveSticker(latest.sticker)?.label||''):latest?.content || '今天有什么安排？';
   $('#sessionTime').textContent=latest?.createdAt ? formatChatTimestamp(latest.createdAt).split(' ').at(-1) : '';
-  $('#sidebarTaskCount').textContent=state.tasks.filter(t=>!t.isContainer && !['completed','cancelled'].includes(t.status)).length;
   const matches=state.messages.map((message,index)=>({message,index})).filter(({message})=>chatSearchQuery?String(message.content || (message.kind==='sticker'?window.resolveSticker(message.sticker)?.label:'') || '').toLocaleLowerCase().includes(chatSearchQuery.toLocaleLowerCase()):!window.recordBook.past(message.createdAt));
   $('#chatContactStatus').textContent=chatSearchQuery ? '找到 '+matches.length+' 条相关消息' : '任务安排 · 日程提醒 · 进度跟进';
-  if (!matches.length) {container.innerHTML='<div class="chat-search-empty">'+(chatSearchQuery?'没有找到相关消息，换个关键词试试。':'今天有什么安排？从一条消息开始吧。')+'</div>';syncComposer();window.friendsUI?.render();return;}
+  if (!matches.length) {container.innerHTML='<div class="chat-search-empty">'+(chatSearchQuery?'没有找到相关消息，换个关键词试试。':'今天有什么安排？从一条消息开始吧。')+'</div>';chatScroll.afterRender(state.messages);syncComposer();window.friendsUI?.render();return;}
   let previousTime=0;
-  container.innerHTML=matches.map(({message,index})=>{
+  container.innerHTML='<div class="chat-flow">'+matches.map(({message,index})=>{
     const user=message.role==='user',time=Date.parse(message.createdAt), showTime=Number.isFinite(time) && (!previousTime || time-previousTime>=300000 || chatSearchQuery);
     if (showTime) previousTime=time;
     const trace=message.execution ? '<details class="execution-trace"><summary>查看处理记录</summary><ol>'+(message.execution.plan || []).map(step=>'<li>'+escapeHtml(step)+'</li>').join('')+'</ol>'+(message.execution.trace || []).map(step=>'<small>'+(step.status==='error'?'需修正':'完成')+' · '+escapeHtml(step.summary)+'</small>').join('')+'</details>' : '';
     const stickerOnly=message.kind==='sticker'&&window.resolveSticker(message.sticker);
     const stickerHost=window.resolveSticker(message.sticker)?'<div class="message-sticker-host" data-sticker-index="'+index+'"></div>':'';
     const momentImage=message.kind==='moment'?window.momentMedia.get(state.moments?.find(m=>m.id===message.momentId)?.image):null;
-    const body=message.kind==='moment'?'<button type="button" class="moment-message-card" data-open-moments="'+escapeHtml(message.momentId||'')+'"><span>◉ '+escapeHtml(identity.assistantName)+'发了一条朋友圈</span><p>'+highlightChat(message.content)+'</p>'+(momentImage?'<img class="moment-message-thumb" src="'+escapeHtml(momentImage.url)+'" alt="配图" referrerpolicy="no-referrer" />':'')+'<small>看看这条动态 ›</small></button>':stickerOnly?stickerHost:'<div class="bubble">'+highlightChat(message.content)+trace+'</div>'+stickerHost;
+    const body=message.kind==='moment'?'<button type="button" class="moment-message-card" data-open-moments="'+escapeHtml(message.momentId||'')+'"><span>◉ '+escapeHtml(identity.assistantName)+'发了一条瞬笺</span><p>'+highlightChat(message.content)+'</p>'+(momentImage?'<img class="moment-message-thumb" src="'+escapeHtml(momentImage.url)+'" alt="配图" referrerpolicy="no-referrer" />':'')+'<small>看看这条动态 ›</small></button>':stickerOnly?stickerHost:'<div class="bubble">'+highlightChat(message.content)+trace+'</div>'+stickerHost;
     const tools=stickerOnly?'':'<div class="message-tools">'+(message.meta?'<span class="message-meta">'+escapeHtml(message.meta)+'</span>':'')+'<button type="button" class="copy-message" data-copy-message="'+index+'" aria-label="复制这条消息">复制</button></div>';
     return (showTime?'<div class="message-time">'+escapeHtml(formatChatTimestamp(message.createdAt))+'</div>':'')+'<div class="message '+(user?'user':'assistant')+(stickerOnly?' sticker-message':'')+'" data-message-id="'+escapeHtml(message.id)+'">'+(user?'<button type="button" class="avatar companion-avatar-button" data-open-user aria-label="查看我的资料" title="':'<button type="button" class="avatar companion-avatar-button" data-open-companion aria-label="查看人物资料" title="')+escapeHtml(user?identity.userName:identity.assistantName)+'"><img class="avatar-image" data-avatar-role="'+(user?'user':'assistant')+'" src="'+escapeHtml(user?identity.userAvatar:identity.assistantAvatar)+'" alt="" />'+'</button>'+'<div class="message-content"><div class="sender-name">'+escapeHtml(user?identity.userName:identity.assistantName)+'<span class="sr-only">：</span></div>'+body+tools+'</div></div>';
 
-  }).join('');
+  }).join('')+'</div>';
   window.stickerUI.mount(container,state.messages);
-  if (chatSearchQuery) container.scrollTop=0;
-  else if (wasNearBottom || latest?.role==='user') container.scrollTop=container.scrollHeight;
-  else container.scrollTop=previousScroll;
+  chatScroll.afterRender(state.messages);
   syncComposer();
   window.friendsUI?.render();
 }
@@ -344,29 +342,6 @@ function minutesFromInput(input, fallback = 10) {
   return (match[2].startsWith('小') || match[2] === '时') ? number * 60 : number;
 }
 
-function completionBubble(completedTitle) {
-  const next = sortTasks(state.tasks).find((task) => isTaskAvailable(task) && !['completed', 'cancelled'].includes(task.status));
-  if (next) {
-    return {
-      title: '已完成。下一步？',
-      body: `“${completedTitle || '这项工作'}”已记录完成。下一项是“${next.title}”。继续执行，还是休息一会？`,
-      quickActions: [
-        { label: '继续下一项', message: '继续下一项' },
-        { label: '休息 10 分钟', message: '休息10分钟' },
-        { label: '打开调度窗', action: 'open-main' }
-      ]
-    };
-  }
-  return {
-    title: '已完成。暂无下一项',
-    body: `“${completedTitle || '这项工作'}”已记录完成。当前没有待执行任务：安排新工作，还是休息一会？`,
-    quickActions: [
-      { label: '休息 10 分钟', message: '休息10分钟' },
-      { label: '安排新工作', action: 'open-main' }
-    ]
-  };
-}
-
 function scheduleRest(minutes = 10) {
   const safeMinutes = Math.max(1, Number(minutes) || 10);
   const quietUntil = new Date(Date.now() + safeMinutes * 60000).toISOString();
@@ -529,8 +504,7 @@ async function handleMessageInternal(text, fromBubble = false, context = null) {
     if (!result.applied && result.followUpMinutes && followUpTask && !completionRequested) scheduleSupervision(followUpTask, result.followUpMinutes);
     const reply = result.reply || '已处理。';
     addMessage('assistant', reply, result.source === 'agent' ? '已通过工具执行并校验结果' : result.source === 'local' ? '本地规则模式：配置支持工具调用的模型后可启用 Agent' : '已由模型完成结构化调度', result.sticker);
-    if (fromBubble && completionRequested && result.source !== 'agent') await showBubbleReply(completionBubble(completedTask?.title));
-    else if (fromBubble && !isSnoozeRequest(input) && !result.silent) await showBubbleReply({ title: result.question ? '想确认一下' : window.chatProfile.get(state.settings).assistantName+'回复', body: reply, sticker:result.sticker, taskId:result.question?.taskId || context?.taskId, questionId:result.question?.id, quickActions:result.question ? (result.question.quickReplies || []).map(message=>({label:message,message})) : [] });
+    if (fromBubble && !isSnoozeRequest(input) && !result.silent) await showBubbleReply({ title: result.question ? '想确认一下' : window.chatProfile.get(state.settings).assistantName+'回复', body: reply, sticker:result.sticker, taskId:result.question?.taskId || context?.taskId, questionId:result.question?.id, quickActions:(result.quickReplies || result.question?.quickReplies || []).map(message=>({label:message,message})) });
   }
   if(executionMeta){const replyMessage=[...state.messages].reverse().find(m=>m.role==='assistant'&&m.kind!=='sticker');if(replyMessage)replyMessage.execution=executionMeta;}
   await save(); renderAll(); $('#chatInput').disabled = false; $('#chatInput').focus();
@@ -658,17 +632,20 @@ $('#modelInput').addEventListener('input',()=>{const value=$('#modelInput').valu
 
 let profileDraft={};let profileDraftEpoch=0;let avatarLoads=0;const avatarRequestIds={assistant:0,user:0};
 function renderIdentity(){
-  const identity=window.chatProfile.get(state.settings);$('#assistantDisplayName').textContent=identity.assistantName;$('#conversationDisplayName').textContent=identity.assistantName;$('#contactAvatarImage').src=identity.assistantAvatar;$('#activeConversation').setAttribute('aria-label','打开'+identity.assistantName+'会话');$('#chatMessages').setAttribute('aria-label','与'+identity.assistantName+'的聊天记录');$('#chatInputLabel').textContent='发送给'+identity.assistantName+'的消息';$('#typingText').textContent=identity.assistantName+'正在思考';window.companionUI?.render();return identity;
+  const identity=window.chatProfile.get(state.settings);$('#assistantDisplayName').textContent=identity.assistantName;$('#conversationDisplayName').textContent=identity.assistantName;$('#contactAvatarImage').src=identity.assistantAvatar;$('#activeConversation').setAttribute('aria-label','打开'+identity.assistantName+'会话');$('#chatMessages').setAttribute('aria-label','与'+identity.assistantName+'的聊天记录');$('#chatInputLabel').textContent='发送给'+identity.assistantName+'的消息';$('#typingText').textContent=identity.assistantName+'正在输入';window.companionUI?.render();return identity;
 }
-function refreshProfilePreview(){for(const role of ['assistant','user'])$('#'+role+'AvatarPreview').src=profileDraft[role+'Avatar'];}
-function openProfileSettings(settings){profileDraftEpoch++;profileDraft=window.chatProfile.get(settings);$('#assistantNameInput').value=profileDraft.assistantName;$('#userNameInput').value=profileDraft.userName;refreshProfilePreview();}
+function refreshProfilePreview(){for(const role of ['assistant','user'])$('#'+role+'AvatarPreview').src=profileDraft[role+'Avatar'];for(const role of ['user','assistant'])document.querySelectorAll('[data-'+role+'-avatar]').forEach(button=>{const selected=button.dataset[role+'Avatar']===profileDraft[role+'Avatar'];button.classList.toggle('is-selected',selected);button.setAttribute('aria-pressed',String(selected));});}
+function openProfileSettings(settings){profileDraftEpoch++;profileDraft=window.chatProfile.get(settings);$('#assistantNameInput').value=profileDraft.assistantName;$('#userNameInput').value=profileDraft.userName;$('#assistantAvatarPresets').innerHTML=window.chatProfile.assistantAvatarPresets(settings).map(preset=>'<button type="button" class="avatar-preset-option" data-assistant-avatar="'+escapeHtml(preset.src)+'" aria-pressed="false"><img src="'+escapeHtml(preset.src)+'" alt="" /><span>'+escapeHtml(preset.label)+'</span></button>').join('');refreshProfilePreview();}
 async function avatarFromFile(file){
   if(!file||!['image/png','image/jpeg','image/webp','image/gif'].includes(file.type))throw Error('请选择 PNG、JPG、WebP 或 GIF 图片。');
   if(file.size>8*1024*1024)throw Error('图片需小于 8 MB。');
   const url=URL.createObjectURL(file);try{const image=new Image();await new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=()=>reject(Error('无法读取图片，请换一张图片。'));image.src=url;});if(!image.naturalWidth||!image.naturalHeight||image.naturalWidth*image.naturalHeight>24*1024*1024)throw Error('图片尺寸过大，请使用较小的图片。');const edge=Math.min(image.naturalWidth,image.naturalHeight);const canvas=document.createElement('canvas');canvas.width=256;canvas.height=256;canvas.getContext('2d').drawImage(image,(image.naturalWidth-edge)/2,(image.naturalHeight-edge)/2,edge,edge,0,0,256,256);const value=canvas.toDataURL('image/webp',.86);if(value.length>260000)throw Error('图片处理后仍过大，请换一张较小的图片。');return value;}finally{URL.revokeObjectURL(url);}
 }
 const identitySection=document.createElement('section');identitySection.className='identity-section settings-section';identitySection.innerHTML='<div class="settings-section-title">聊天身份</div><p class="settings-section-copy">知序，陪你把事情理清、做好。你和助手的名称、头像都可以自由修改。</p><div class="identity-grid">'+[['assistant','助手','知序'],['user','我的','我']].map(([role,label,name])=>'<div class="identity-card"><img id="'+role+'AvatarPreview" class="identity-preview" data-avatar-role="'+role+'" alt="'+label+'头像预览" src="'+window.chatProfile.defaults[role+'Avatar']+'" /><label>'+label+'名称<input id="'+role+'NameInput" maxlength="24" placeholder="'+name+'" /></label><div class="identity-actions"><button type="button" class="secondary" id="'+role+'AvatarChange">更换头像</button><button type="button" class="text-button" id="'+role+'AvatarReset">恢复默认头像</button></div><input id="'+role+'AvatarFile" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden /></div>').join('')+'</div><span class="settings-section-copy">图片自动居中裁剪，保存在本机，点击“保存设置”后生效。</span>';$('#settingsForm').prepend(identitySection);
+const assistantAvatarPicker=document.createElement('div');assistantAvatarPicker.id='assistantAvatarPresets';assistantAvatarPicker.className='assistant-avatar-presets';assistantAvatarPicker.setAttribute('role','group');assistantAvatarPicker.setAttribute('aria-label','选择伙伴头像');$('#assistantNameInput').closest('.identity-card').append(assistantAvatarPicker);assistantAvatarPicker.addEventListener('click',event=>{const button=event.target.closest('[data-assistant-avatar]');if(!button)return;avatarRequestIds.assistant++;profileDraft.assistantAvatar=button.dataset.assistantAvatar;refreshProfilePreview();$('#settingsStatus').textContent='已选择头像，保存资料后生效。';});
+const userAvatarPicker=document.createElement('div');userAvatarPicker.className='user-avatar-presets';userAvatarPicker.setAttribute('role','group');userAvatarPicker.setAttribute('aria-label','选择我的头像');userAvatarPicker.innerHTML=window.chatProfile.userAvatarPresets.map(preset=>'<button type="button" class="avatar-preset-option" data-user-avatar="'+escapeHtml(preset.src)+'" aria-pressed="false"><img src="'+escapeHtml(preset.src)+'" alt="" /><span>'+escapeHtml(preset.label)+'</span></button>').join('');$('#userNameInput').closest('.identity-card').append(userAvatarPicker);userAvatarPicker.addEventListener('click',event=>{const button=event.target.closest('[data-user-avatar]');if(!button)return;avatarRequestIds.user++;profileDraft.userAvatar=button.dataset.userAvatar;refreshProfilePreview();$('#settingsStatus').textContent='已选择头像，保存资料后生效。';});
 for(const role of ['assistant','user']){
+ if(role==='assistant'){const classic=document.createElement('button');classic.id='assistantAvatarClassic';classic.type='button';classic.className='text-button';classic.textContent='使用原版头像';$('#assistantAvatarReset').after(classic);classic.addEventListener('click',()=>{avatarRequestIds.assistant++;profileDraft.assistantAvatar=window.chatProfile.classicAvatar(state.settings);refreshProfilePreview();$('#settingsStatus').textContent='已选用原版头像，保存资料后生效。';});}
  $('#'+role+'AvatarChange').addEventListener('click',()=>$('#'+role+'AvatarFile').click());
  $('#'+role+'AvatarReset').addEventListener('click',()=>{avatarRequestIds[role]++;profileDraft[role+'Avatar']=window.chatProfile.defaultsFor(state.settings)[role+'Avatar'];refreshProfilePreview();$('#settingsStatus').textContent='已恢复默认头像，保存设置后生效。';});
  $('#'+role+'AvatarFile').addEventListener('change',async event=>{const file=event.target.files[0];if(!file)return;const epoch=profileDraftEpoch,ticket=++avatarRequestIds[role];avatarLoads++;try{const value=await avatarFromFile(file);if(epoch!==profileDraftEpoch||ticket!==avatarRequestIds[role])return;profileDraft[role+'Avatar']=value;refreshProfilePreview();$('#settingsStatus').textContent='头像已预览，保存设置后生效。';}catch(error){if(epoch===profileDraftEpoch)$('#settingsStatus').textContent=error.message;}finally{avatarLoads--;event.target.value='';}});
@@ -733,7 +710,7 @@ $('#changeDataDirectoryButton').addEventListener('click', async () => {
     button.disabled = true; await save();
     const result = await window.humanDispatch.setDataDirectory(directory);
     $('#dataDirectoryInput').value = result.directory;
-    $('#settingsStatus').textContent = '数据保存位置已更新，原有数据已保留。';
+    $('#settingsStatus').textContent = result.message || '数据保存位置已更新，原有数据已保留。';
   } catch (error) { $('#settingsStatus').textContent = `更改失败：${error.message}`; } finally { button.disabled = false; }
 });
 $('#exportDataButton').addEventListener('click', async () => {
@@ -759,7 +736,7 @@ $('#importDataButton').addEventListener('click', async () => {
   }
 });
 $('#testConnectionButton').addEventListener('click', async () => { $('#settingsStatus').textContent = '正在测试……'; const testSettings = { ...state.settings, baseUrl: $('#baseUrlInput').value.trim(), apiKey: $('#apiKeyInput').value.trim(), model: $('#modelInput').value.trim() }; try { const result = await window.humanDispatch.askAI({ settings: testSettings, testAgent: true, text: '仅测试工具调用：使用 list_tasks，然后用 finish 回复连接测试成功，不要修改数据。', messages: [] }); $('#settingsStatus').textContent = result.source === 'agent' ? '连接成功，模型支持 Agent 工具调用。' : result.source === 'model' ? '连接成功，模型已返回结构化结果。' : `未连接到模型：${result.warning || '将使用本地模式'}`; } catch (error) { $('#settingsStatus').textContent = `Agent 连接测试失败：${error.message}`; } });
-$('#chatForm').addEventListener('submit', (event) => { event.preventDefault(); handleMessage($('#chatInput').value); }); $('#chatInput').addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); if (!agentBusy && $('#chatInput').value.trim()) $('#chatForm').requestSubmit(); } });
+$('#chatForm').addEventListener('submit', (event) => { event.preventDefault(); handleMessage($('#chatInput').value); }); $('#chatInput').addEventListener('keydown', event => { const phoneNewline = matchMedia('(max-width:760px)').matches && !event.ctrlKey && !event.metaKey; if (event.key === 'Enter' && !event.shiftKey && !phoneNewline && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); if (!agentBusy && $('#chatInput').value.trim()) $('#chatForm').requestSubmit(); } });
 function restoreComposerFocus(){syncComposer();$('#chatInput').readOnly=false;$('#chatInput').focus({preventScroll:true});requestAnimationFrame(()=>{if($('#clearChatModal').classList.contains('hidden'))$('#chatInput').focus({preventScroll:true});});}
 function openClearChatDialog(){
  if(agentBusy||chatClearing){showToast('请等待当前消息处理完毕');return;}
@@ -901,9 +878,9 @@ function toggleComposerPopup(id) {
 function insertComposerText(text) {
   const input=$('#chatInput');input.setRangeText(text,input.selectionStart,input.selectionEnd,'end'); input.focus();syncComposer();
 }
-for (const id of ['taskPanelButton','tasksNavButton','todayPlanButton']) $('#'+id).addEventListener('click',()=>toggleTaskPanel($('#taskPanel').hidden));
+for (const id of ['taskPanelButton','tasksNavButton']) $('#'+id).addEventListener('click',()=>toggleTaskPanel($('#taskPanel').hidden));
 for (const id of ['closeTaskPanel','taskPanelBackdrop']) $('#'+id).addEventListener('click',()=>toggleTaskPanel(false));
-for (const id of ['activeConversation','chatNavButton']) $('#'+id).addEventListener('click',()=>{chatSearchQuery='';$('#chatSearchInput').value='';toggleTaskPanel(false);renderMessages();$('#chatMessages').scrollTop=$('#chatMessages').scrollHeight;});
+for (const id of ['activeConversation','chatNavButton']) $('#'+id).addEventListener('click',()=>{chatSearchQuery='';$('#chatSearchInput').value='';toggleTaskPanel(false);renderMessages();chatScroll.toLatest();});
 $('#emojiButton').addEventListener('click',()=>toggleComposerPopup('emojiPicker'));
 $('#quickRepliesButton').addEventListener('click',()=>toggleComposerPopup('quickPromptPanel'));
 document.querySelectorAll('[data-emoji]').forEach(button=>button.addEventListener('click',()=>{insertComposerText(button.dataset.emoji);toggleComposerPopup(null);}));

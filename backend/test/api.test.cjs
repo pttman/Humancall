@@ -34,10 +34,14 @@ test('HTTP 数据、备份、模型降级、静态资源和来源限制', async 
   assert.match(await (await fetch(base + '/api.js')).text(), /fetch\('/);
   assert.equal((await fetch(base + '/package.json')).status, 404);
   assert.equal((await fetch(base + '/api/missing')).status, 404);
+  const bytes=Buffer.from([137,80,78,71,13,10,26,10,0,0,0,0]);const hash=require('node:crypto').createHash('sha256').update(bytes).digest('hex');fs.mkdirSync(core.momentMediaDirectory(),{recursive:true});fs.writeFileSync(path.join(core.momentMediaDirectory(),hash+'.png'),bytes);
+  const imageResponse=await fetch(base+'/api/moment-media/'+hash+'.png');assert.equal(imageResponse.headers.get('content-type'),'image/png');assert.deepEqual(Buffer.from(await imageResponse.arrayBuffer()),bytes);
+  const saved=await get('/api/state');saved.moments=[{id:'photo',content:'咖啡',createdAt:new Date().toISOString(),image:{id:'remote:'+hash+'.png',sourceId:'commons:1',sourceUrl:'https://commons.wikimedia.org/wiki/File:Coffee.jpg',remoteUrl:'https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ab/Coffee.jpg/1280px-Coffee.jpg',label:'Coffee',artist:'Artist',license:'CC BY 4.0'}}];await send('/api/state','PUT',saved);
   const moved = path.join(directory, 'moved');
   assert.equal((await send('/api/storage', 'PUT', { directory: moved })).status, 200);
   assert.equal((await get('/api/storage')).directory, moved);
   assert.equal((await get('/api/state')).tasks[0].id, 'task-1');
+  const fallback=await fetch(base+'/api/moment-media/'+hash+'.png',{redirect:'manual'});assert.equal(fallback.status,302);assert.equal(fallback.headers.get('location'),saved.moments[0].image.remoteUrl);
   assert.equal((await send('/api/storage', 'PUT', { directory })).status, 400);
 });
 test('模型请求使用原任务上下文并解析 JSON', async t => {

@@ -1,7 +1,7 @@
 (() => {
   const primary=$('#activeConversation');primary.dataset.friendId='zhixu';
   const second=document.createElement('button');second.id='secondConversation';second.type='button';second.className='conversation-item';second.dataset.friendId='luye';
-  second.innerHTML='<span class="contact-avatar"><img id="secondContactAvatarImage" data-avatar-role="assistant" data-avatar-fallback="/avatars/luye.png" src="/avatars/luye.png" alt="" /><span class="online-dot"></span></span><span class="conversation-content"><span class="conversation-line"><strong id="secondConversationName">陆野</strong><time id="secondSessionTime"></time></span><span id="secondSessionPreview" class="conversation-preview">没事也能聊两句。</span></span>';primary.after(second);
+  second.innerHTML='<span class="contact-avatar"><img id="secondContactAvatarImage" data-avatar-role="assistant" data-avatar-fallback="/avatars/luye.png" src="/avatars/luye.png" alt="" /><span class="online-dot"></span></span><span class="conversation-content"><span class="conversation-line"><strong id="secondConversationName">枫言</strong><time id="secondSessionTime"></time></span><span id="secondSessionPreview" class="conversation-preview">没事也能聊两句。</span></span>';primary.after(second);
   $('#contactAvatarImage').dataset.avatarFallback='/avatars/zhixu.png';$('#contactAvatarImage').dataset.avatarRole='assistant';
   function render(){
     for(const [id,button,prefix] of [['zhixu',primary,''],['luye',second,'second']]){
@@ -9,7 +9,7 @@
       const messages=active?state.messages:(state.friends?.[id]?.messages||[]),latest=messages.at(-1);
       const avatar=$(prefix?'#secondContactAvatarImage':'#contactAvatarImage'),name=$(prefix?'#secondConversationName':'#conversationDisplayName'),time=$(prefix?'#secondSessionTime':'#sessionTime'),preview=$(prefix?'#secondSessionPreview':'#sessionPreview');
       avatar.src=identity.assistantAvatar;avatar.parentElement.title='查看'+identity.assistantName+'的资料';name.textContent=identity.assistantName;
-      preview.textContent=latest?.kind==='sticker'?'[表情包]':latest?.kind==='moment'?'[朋友圈] '+latest.content:latest?.content||(id==='luye'?'没事也能聊两句。':'今天有什么安排？');
+      preview.textContent=latest?.kind==='sticker'?'[表情包]':latest?.kind==='moment'?'[瞬笺] '+latest.content:latest?.content||(id==='luye'?'没事也能聊两句。':'今天有什么安排？');
       time.textContent=latest?.createdAt?formatChatTimestamp(latest.createdAt).split(' ').at(-1):'';
       button.classList.toggle('is-active',active);button.setAttribute('aria-pressed',String(active));button.setAttribute('aria-label','与'+identity.assistantName+'聊天');
     }

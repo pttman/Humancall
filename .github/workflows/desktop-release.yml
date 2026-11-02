@@ -1,0 +1,103 @@
+name: Desktop Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desktop-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows
+            os: windows-latest
+          - platform: macos
+            os: macos-15
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Verify release tag
+        shell: bash
+        run: test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+      - name: Build Windows installer
+        if: matrix.platform == 'windows'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:installer
+      - name: Verify Windows native startup
+        if: matrix.platform == 'windows'
+        run: node tools/windows-smoke.cjs "release/win-unpacked/人类调度.exe"
+      - name: Build universal DMG
+        if: matrix.platform == 'macos'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:mac
+      - name: Verify macOS universal bundle and native startup
+        if: matrix.platform == 'macos'
+        run: |
+          APP="release/mac-universal/人类调度.app"
+          lipo "$APP/Contents/MacOS/人类调度" -verify_arch x86_64 arm64
+          codesign --verify --deep --strict "$APP"
+          node tools/macos-smoke.cjs "$APP"
+      - name: Generate installer checksum
+        shell: bash
+        env:
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          node - <<'NODE'
+          const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
+          const windows=process.env.PLATFORM==='windows';
+          const files=fs.readdirSync('release').filter(f=>windows?/^Humancall-Setup-.*-x64\.exe$/.test(f):/^Humancall-.*-mac-universal\.dmg$/.test(f));
+          if(files.length!==1)throw Error('Expected exactly one installer: '+files);
+          const manifest=files.map(f=>crypto.createHash('sha256').update(fs.readFileSync(path.join('release',f))).digest('hex')+'  '+f).join('\n')+'\n';
+          fs.writeFileSync(path.join('release',windows?'SHA256SUMS.txt':'SHA256SUMS-macOS.txt'),manifest);
+          NODE
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-installer
+          path: |
+            release/Humancall-Setup-*-x64.exe
+            release/Humancall-*-mac-universal.dmg
+            release/SHA256SUMS*.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '*-installer'
+          merge-multiple: true
+          path: release
+      - name: Publish both installers together
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS.txt
+          sha256sum -c SHA256SUMS-macOS.txt
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft --verify-tag --title "人类调度 $GITHUB_REF_NAME" --notes-file "../docs/releases/$GITHUB_REF_NAME.md" Humancall-Setup-*-x64.exe Humancall-*-mac-universal.dmg SHA256SUMS.txt SHA256SUMS-macOS.txt
+          gh release edit "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --draft=false --latest

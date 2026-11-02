@@ -30,3 +30,25 @@ Use case: illustration-story. Asset type: square avatar for a fictional Chinese 
 ```
 
 陆野的默认人物介绍、签名与角色提示词保存于 `frontend/friends.js` 的 `presets.luye` 和 `LUYE_PROMPT`，可在应用中点击陆野头像继续修改。
+
+
+## 当前默认头像：用户提供的第 2 张双人图
+
+默认知序与枫言头像来自用户提供的第二张图片：按中线左右精确裁切，左半用于知序，右半用于枫言。每张 887 × 887 像素；未重新生成或重绘。资源仍使用 `frontend/avatars/zhixu.png`、`frontend/avatars/luye.png`，因此已有默认头像配置自动显示新图。
+
+原版头像完整保留为 `zhixu-classic.png`、`luye-classic.png`，人物资料编辑中可点“使用原版头像”，或点“恢复默认头像”切回新图。用户上传的自定义头像继续保留。
+
+
+## “我”的头像预设
+
+新增用户提供的三张原图，按附件顺序保存为 `user.png`（蓝色，默认）、`user-orange.png`、`user-green.png`。未进行生成或重绘。原来的个人头像完整保存为 `user-classic.png`；四个选项在“我的资料”中预览和切换，点击“保存资料”后生效。自定义上传图片仍保留。
+
+
+## 知序与枫言的三组可选头像
+
+三张双人原图均按中线精确拆分，左侧为知序、右侧为枫言。第 1 组保存为 `zhixu-group1.png` / `luye-group1.png`（水墨），第 2 组继续使用 `zhixu.png` / `luye.png`（柔光，默认），第 3 组保存为 `zhixu-group3.png` / `luye-group3.png`（暖绘）。每张均为 887 × 887 像素，未重新生成。人物资料编辑中可从三组及原版头像中选择，保存后生效。
+
+
+## v0.1.19 最终默认头像策略
+
+知序、枫言和“我”全部恢复原版默认头像，使用 `zhixu.png`、`luye.png`、`user.png`。两位伙伴的三组新图完整保留为 `*-group1.png`、`*-group2.png`、`*-group3.png`；“我”的三张新图为 `user-blue.png`、`user-orange.png`、`user-green.png`。原版 `*-classic.png` 归档继续保留；旧归档路径会规范为默认路径。新增图片仍可在资料页选择并保存。

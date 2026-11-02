@@ -8,3 +8,10 @@
 .bubble-shell .brand-mark{padding:0;overflow:hidden}.bubble-shell .brand-mark img{display:block;width:100%;height:100%;object-fit:cover}
 #clearChatModal{z-index:20}.clear-chat-card{width:min(440px,calc(100vw - 32px))}#clearChatStatus:empty{min-height:0}
 @media(max-width:620px){.identity-grid{grid-template-columns:minmax(0,1fr)}.identity-card{grid-template-columns:54px minmax(0,1fr)}}
+
+:is(.user-avatar-presets,.assistant-avatar-presets){grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-top:9px;padding-top:14px;border-top:1px solid var(--line)}
+:is(.user-avatar-presets,.assistant-avatar-presets) .avatar-preset-option{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;padding:7px 3px;border:1px solid transparent;border-radius:10px;background:transparent;color:var(--muted);cursor:pointer}
+.avatar-preset-option img{display:block;width:48px;height:48px;border-radius:10px;object-fit:cover}.avatar-preset-option span{font-size:10px;line-height:1.5;white-space:nowrap}
+:is(.user-avatar-presets,.assistant-avatar-presets) .avatar-preset-option:hover{background:var(--panel)}
+:is(.user-avatar-presets,.assistant-avatar-presets) .avatar-preset-option.is-selected{border-color:var(--green);background:color-mix(in srgb,var(--green) 8%,var(--panel));color:var(--green)}
+.avatar-preset-option:focus-visible{outline:2px solid var(--green);outline-offset:2px}

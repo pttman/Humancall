@@ -36,7 +36,7 @@ function createSupervisor({ readState, agent = runAgent, clock = () => new Date(
       if (result.silent) return {suppressed:true};
       const question=result.question;
       if(question&&question.taskId!==task.id)return {suppressed:true};
-      return {suppressed:false,kind:'check_in',bubbleId:randomUUID(),title:question?'想确认一下':'关于你的安排',body:question?.question || result.reply,taskId:task.id,taskTitle:task.title,questionId:question?.id,question,sticker:result.sticker,source:result.source,quickActions:question?(question.quickReplies || []).map(message=>({label:message,message})):[],generatedAt:now.toISOString()};
+      return {suppressed:false,kind:'check_in',bubbleId:randomUUID(),title:question?'想确认一下':'关于你的安排',body:question?.question || result.reply,taskId:task.id,taskTitle:task.title,questionId:question?.id,question,sticker:result.sticker,source:result.source,quickActions:(result.quickReplies || question?.quickReplies || []).map(message=>({label:message,message})),generatedAt:now.toISOString()};
     } finally {busy=false;}
   };
 }
