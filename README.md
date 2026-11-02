@@ -6,7 +6,7 @@
 
 ## 下载与使用
 
-当前桌面版本 **v0.1.19**，完整改动见 [更新日志](CHANGELOG.md)。
+当前桌面版本 **v0.1.20**，完整改动见 [更新日志](CHANGELOG.md)。
 
 **[前往 GitHub Release 下载最新版](https://github.com/pttman/Humancall/releases/latest)**
 

@@ -39,7 +39,7 @@ async function main() {
   const bundle = path.resolve(process.argv[2] || (windows?'release/win-unpacked/人类调度.exe':'release/mac-universal/人类调度.app'));
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'humancall-mac-smoke-'));
   const binary = windows?bundle:path.join(bundle, 'Contents/MacOS/人类调度');
-  const child = spawn(binary, ['--user-data-dir=' + profile, '--inspect=127.0.0.1:19223', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=19222'], { stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(binary, [...(windows?['--disable-gpu','--disable-gpu-compositing','--disable-software-rasterizer','--disable-renderer-backgrounding']:[]),'--user-data-dir=' + profile, '--inspect=127.0.0.1:19223', '--remote-debugging-address=127.0.0.1', '--remote-debugging-port=19222'], { stdio: ['ignore', 'pipe', 'pipe'] });
   let output = '', renderer, native;
   child.stdout.on('data', chunk => { output = (output + chunk).slice(-12000); });
   child.stderr.on('data', chunk => { output = (output + chunk).slice(-12000); });
