@@ -1,5 +1,15 @@
 # 前后端分离开发说明
 
+## macOS 打包与发布
+
+在 Mac 上执行 `npm ci`、`npm run check`、`npm test`、`npm run dist:mac`，生成 `release/Humancall-版本号-mac-universal.dmg`。通用包包含 arm64 与 x86_64，最低 macOS 11。现有 Windows 安装流程不变。
+
+GitHub Actions 的 `macOS Release` 工作流从所选分支构建，检查 package.json 版本与输入的已有 Release 标签一致，通过语法、后端测试、通用架构和临时签名校验后，在 Mac 上实际启动打包后的应用，验证本地 API、双朋友切换、输入框、设置及 Dock 唤回。校验通过才向该 Release 添加 DMG 与独立 `SHA256SUMS-macOS.txt`；不会创建新版本、改动现有标签或替换 Windows 附件。同名附件存在时上传失败，需要明确处理后再重跑。
+
+当前 Mac 包采用 ad-hoc 临时签名（`identity: "-"`），未使用 Apple Developer ID 或公证，首次打开可能被 Gatekeeper 拦截。分发说明见 README；不要求用户关闭系统安全检查。未来添加开发者证书与公证时，应启用 hardened runtime 并配置对应 entitlements 和 GitHub Secrets。
+
+macOS 保留系统应用、编辑、窗口菜单，支持 `⌘C` / `⌘V` / `⌘Q`；关闭主窗口后点击 Dock 图标可重新显示。默认数据位于 `~/Library/Application Support/human-dispatch`，保存位置仍可在设置中更改。
+
 要求 Node.js 20.12+（本次验证使用 Node.js 24），桌面运行还需安装根目录的 Electron 依赖。
 
 ## 启动

@@ -22,7 +22,8 @@
     "test:task-settings": "node tools/run-task-settings-test.cjs",
     "test:task-list": "node tools/run-task-list-test.cjs",
     "test:conversation-lifecycle": "node tools/run-conversation-lifecycle-test.cjs",
-    "dist:installer": "electron-builder --win nsis --x64 --publish never"
+    "dist:installer": "electron-builder --win nsis --x64 --publish never",
+    "dist:mac": "electron-builder --mac dmg --universal --publish never"
   },
   "build": {
     "appId": "com.human-dispatch.desktop",
@@ -53,6 +54,24 @@
       "icon": "assets/app-icon.ico",
       "target": [
         "nsis"
+      ]
+    },
+    "mac": {
+      "target": ["dmg"],
+      "artifactName": "Humancall-${version}-mac-universal.${ext}",
+      "category": "public.app-category.productivity",
+      "icon": "assets/app-icon.png",
+      "minimumSystemVersion": "11.0",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "notarize": false
+    },
+    "dmg": {
+      "title": "人类调度 ${version}",
+      "artifactName": "Humancall-${version}-mac-universal.${ext}",
+      "contents": [
+        { "x": 130, "y": 150, "type": "file" },
+        { "x": 410, "y": 150, "type": "link", "path": "/Applications" }
       ]
     },
     "nsis": {

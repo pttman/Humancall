@@ -137,7 +137,8 @@ function hideBubble() {
 
 function createTray() {
   const appIcon = nativeImage.createFromPath(appIconPngPath);
-  tray = new Tray(appIcon.isEmpty() ? nativeImage.createEmpty() : appIcon.resize({ width: 32, height: 32 }));
+  const size = process.platform === 'darwin' ? 18 : 32;
+  tray = new Tray(appIcon.isEmpty() ? nativeImage.createEmpty() : appIcon.resize({ width: size, height: size }));
   tray.setToolTip('人类调度 ' + app.getVersion());
   tray.setContextMenu(Menu.buildFromTemplate([
     { label: '打开调度窗', click: () => { mainWindow.show(); mainWindow.focus(); } },
@@ -159,7 +160,11 @@ function startPassiveSupervisor() {
   passiveTimer = setInterval(() => passiveNudge(false), 15000);
 }
 
-app.setAppUserModelId('com.human-dispatch.desktop');
+if (process.platform === 'win32') app.setAppUserModelId('com.human-dispatch.desktop');
+
+app.on('activate', () => {
+  if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); }
+});
 
 app.whenReady().then(async () => {
   try {
@@ -169,7 +174,11 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
-  Menu.setApplicationMenu(null);
+  Menu.setApplicationMenu(process.platform === 'darwin' ? Menu.buildFromTemplate([
+    { role: 'appMenu' },
+    { role: 'editMenu' },
+    { role: 'windowMenu' }
+  ]) : null);
   configureDataDirectory(dataDirectory());
   const storage = createStorageController({ initialDirectory: dataDirectory(), configPath: path.join(app.getPath('userData'), 'data-directory.txt'), encoding: 'utf16le' });
   apiServer = createServer({ storage, onStateSaved:pruneBubbles });
@@ -212,4 +221,4 @@ app.whenReady().then(async () => {
 
 app.on('window-all-closed', (event) => event.preventDefault());
 
-app.on('before-quit', () => { clearInterval(passiveTimer); apiServer?.close(); });
+app.on('before-quit', () => { app.isQuitting = true; clearInterval(passiveTimer); apiServer?.close(); });

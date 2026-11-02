@@ -1,0 +1,81 @@
+name: macOS Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing Release tag to receive the macOS installer
+        required: true
+        default: v0.1.18
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: macos-release-${{ inputs.release_tag }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Check requested version
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+      - run: npm test
+      - name: Build universal DMG
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: npm run dist:mac
+      - name: Verify universal bundle and native startup
+        run: |
+          APP="release/mac-universal/人类调度.app"
+          lipo -verify_arch x86_64 arm64 "$APP/Contents/MacOS/人类调度"
+          codesign --verify --deep --strict "$APP"
+          node tools/macos-smoke.cjs "$APP"
+      - name: Generate checksum
+        run: |
+          cd release
+          shasum -a 256 Humancall-*-mac-universal.dmg > SHA256SUMS-macOS.txt
+          shasum -a 256 -c SHA256SUMS-macOS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-installer
+          path: |
+            release/Humancall-*-mac-universal.dmg
+            release/SHA256SUMS-macOS.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: macos-installer
+          path: release
+      - name: Upload macOS installer to existing Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          cd release
+          sha256sum -c SHA256SUMS-macOS.txt
+          gh release upload "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" Humancall-*-mac-universal.dmg SHA256SUMS-macOS.txt
