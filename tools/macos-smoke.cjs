@@ -28,6 +28,7 @@ async function main() {
       await wait(500);
     }
     assert.ok(page, 'Packaged frontend did not load: ' + output);
+    console.log('Packaged frontend found: ' + page.url);
     socket = new WebSocket(page.webSocketDebuggerUrl);
     await new Promise((resolve, reject) => { socket.addEventListener('open', resolve, { once: true }); socket.addEventListener('error', reject, { once: true }); });
     let sequence = 0;
@@ -44,7 +45,7 @@ async function main() {
     function call(method, params) {
       return new Promise((resolve, reject) => {
         const id = ++sequence;
-        const timer = setTimeout(() => { pending.delete(id); reject(Error('CDP timeout: ' + method)); }, 20000);
+        const timer = setTimeout(() => { pending.delete(id); reject(Error('CDP timeout: ' + method + ' ' + (params.expression || '').slice(0,160))); }, 20000);
         pending.set(id, { resolve, reject, timer });
         socket.send(JSON.stringify({ id, method, params }));
       });
@@ -58,6 +59,7 @@ async function main() {
       if (await evaluate('Boolean(window.friendsUI && window.recordsUI && window.momentUI && typeof state !== "undefined" && state.settings.workStart)')) break;
       await wait(250);
     }
+    console.log('Renderer initialized, checking local API and UI');
     const result = await evaluate('(' + async function () {
       const check = (condition, message) => { if (!condition) throw Error(message); };
       check(window.friendsUI && window.recordsUI && window.momentUI, 'UI initialization');
@@ -79,8 +81,9 @@ async function main() {
       closeSettings();
       return { backend: true, friends: true, composer: true, settings: true };
     }.toString() + ')()');
-    // Closing the main window hides it; activating the bundle must bring it back.
-    await evaluate('window.close(); true');
+    console.log('Local API and UI passed: ' + JSON.stringify(result));
+    // Defer close until the CDP evaluation has returned; close may suspend its caller.
+    await evaluate('setTimeout(() => window.close(), 100); true');
     await wait(500);
     assert.equal(await evaluate('document.visibilityState'), 'hidden');
     execFileSync('open', ['-a', bundle]);
@@ -91,6 +94,9 @@ async function main() {
     }
     assert.ok(visible, 'Dock activation did not restore the main window');
     console.log('Packaged macOS smoke check passed: ' + JSON.stringify({ ...result, dockActivation: true, nativeArch: process.arch }));
+  } catch (error) {
+    console.error('App diagnostics: ' + output);
+    throw error;
   } finally {
     socket?.close();
     child.kill('SIGTERM');
