@@ -85,7 +85,7 @@ async function main() {
     // Defer close until the CDP evaluation has returned; close may suspend its caller.
     await evaluate('setTimeout(() => window.close(), 100); true');
     await wait(500);
-    assert.equal(await evaluate('document.visibilityState'), 'hidden');
+    // A hidden macOS renderer can suspend CDP responses. Reactivate it before evaluating.
     execFileSync('open', ['-a', bundle]);
     let visible = false;
     for (let i = 0; i < 30; i++) {
