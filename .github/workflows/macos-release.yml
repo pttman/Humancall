@@ -6,7 +6,7 @@ on:
       release_tag:
         description: Existing Release tag to receive the macOS installer
         required: true
-        default: v0.1.20
+        default: v0.1.21
         type: string
 
 permissions:
