@@ -52,3 +52,31 @@ test('陆野旧默认名称与角色文案迁移到枫言，保留人物 ID、�
  friends.normalize(state);assert.equal(state.settings.assistantName,'枫言');assert.equal(state.activeFriendId,'luye');assert.equal(state.settings.systemPrompt,friends.LUYE_PROMPT);assert.equal(state.friends.luye.settings.tonePrompts['松弛损友'],friends.LUYE_PROMPT);assert.equal(state.messages[0].content,'我是陆野。');assert.equal(state.messages[0].id,'past');
  state.settings.assistantName='小枫';state.settings.assistantBio='我的自定义介绍';state.settings.systemPrompt='我的角色提示词';friends.normalize(state);assert.equal(state.settings.assistantName,'小枫');assert.equal(state.settings.assistantBio,'我的自定义介绍');assert.equal(state.settings.systemPrompt,'我的角色提示词');
 });
+
+function dailyState(now){return{activeFriendId:'zhixu',settings:{apiKey:'test',workStart:'00:00',workEnd:'23:59'},tasks:[],moments:[],momentActivity:{},messages:Array.from({length:3},(_,i)=>({id:'today-'+i,role:'user',content:'今天的话题'+i,createdAt:new Date(now-180000-i*1000).toISOString()}))};}
+
+test('瞬笺素材只取本地当天至现在，排除昨天和未来的聊天与任务',()=>{
+ const now=new Date(2026,10,3,10),state=dailyState(now),yesterday=new Date(2026,10,2,23,59).toISOString(),future=new Date(now.getTime()+60000).toISOString();
+ state.messages.push({role:'user',content:'昨天的内容',createdAt:yesterday},{role:'assistant',content:'未来内容',createdAt:future});
+ state.tasks=[{id:'old',title:'昨天完成',status:'completed',completedAt:yesterday},{id:'future',title:'未来更新',updatedAt:future},{id:'new',title:'今天完成',status:'completed',completedAt:new Date(now-120000).toISOString()}];
+ const data=require('../moments.cjs').evidence(state,now);assert.equal(data.users.length,3);assert.equal(data.dialogue.length,3);assert.deepEqual(data.tasks.map(t=>t.id),['new']);
+ state.messages=state.messages.filter(m=>m.createdAt===yesterday);state.tasks=state.tasks.slice(0,1);assert.equal(require('../moments.cjs').evidence(state,now).enough,false);
+});
+
+test('凌晨不补发昨天内容；昨天已发满不占今天的发布额度',async()=>{
+ const now=new Date(2026,10,3,0,10),state=dailyState(now);state.moments=Array.from({length:8},(_,i)=>({id:'old-'+i,friendId:'zhixu',content:'昨天动态',createdAt:new Date(2026,10,2,23,59,i).toISOString()}));
+ let calls=0;const run=createMoments({readState:()=>state,clock:()=>now,model:async(settings,data,previous,clock)=>{calls++;assert.equal(settings.assistantName,'知序');assert.equal(settings.assistantFriendId,'zhixu');assert.equal(previous.length,0);assert.equal(clock,now);assert.ok(data.users.every(m=>book.today(m.at,now)));return{content:'今天刚开始。'};}});
+ const result=await run();assert.equal(result.moment.friendId,'zhixu');assert.equal(calls,1);
+ const oldOnly=dailyState(now);oldOnly.messages.forEach(m=>m.createdAt=new Date(2026,10,2,23,59).toISOString());const noPost=createMoments({readState:()=>oldOnly,clock:()=>now,model:async()=>{throw Error('不应调用模型');}});assert.deepEqual(await noPost(),{suppressed:true});
+});
+
+test('生成或慢速选图跨过午夜时丢弃昨天候选，等待新一天素材',async()=>{
+ let now=new Date(2026,10,3,23,59),state=dailyState(now);const run=createMoments({readState:()=>state,clock:()=>now,model:async()=>({content:'昨天的感受',imageQuery:'coffee'}),imageSelect:async()=>{now=new Date(2026,10,4,0,1);return null;}});
+ assert.deepEqual(await run(),{suppressed:true});assert.equal(state.moments.length,0);
+});
+
+test('每位发布者使用各自资料，生成期间改人物不能串发',async()=>{
+ const now=new Date(2026,10,3,10),state=dailyState(now);friends.normalize(state);state.settings.assistantName='小序';state.settings.assistantAvatar='/avatars/zhixu-group1.png';
+ const run=createMoments({readState:()=>state,clock:()=>now,model:async settings=>{assert.equal(settings.assistantName,'小序');assert.equal(settings.assistantAvatar,'/avatars/zhixu-group1.png');return{content:'小序今天的感受'};}});assert.equal((await run()).moment.friendId,'zhixu');
+ const switching=createMoments({readState:()=>state,clock:()=>now,model:async()=>{friends.select(state,'luye');return{content:'不能记在枫言名下'};}});assert.deepEqual(await switching(),{suppressed:true});
+});

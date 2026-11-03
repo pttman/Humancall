@@ -25,7 +25,7 @@
     selfRail.querySelector('img').src=identity.userAvatar;
     $('#companionName').textContent=identity.assistantName;$('#companionFace').src=identity.assistantAvatar;$('#companionSignature').textContent=person.assistantSignature;$('#companionBio').textContent=person.assistantBio;$('#companionTone').textContent=state.settings.tone||'老板模式';headerAvatar.querySelector('img').src=identity.assistantAvatar;
     $('#momentsOwnerName').textContent=identity.assistantName;$('#momentsOwnerAvatar').src=identity.assistantAvatar;$('#momentsCoverSignature').textContent='奔赴既定的安排，也接住偶然的瞬间';
-    const moments=[...(state.moments||[])].reverse(),latest=moments[0],visibleMoments=moments.filter(m=>!window.recordBook.past(m.createdAt)),ownLatest=visibleMoments.find(m=>(m.friendId||'zhixu')===(state.activeFriendId||'zhixu'));
+    const moments=[...(state.moments||[])].filter(m=>window.recordBook.today(m.createdAt)&&Date.parse(m.createdAt)<=Date.now()).sort((a,b)=>Date.parse(b.createdAt)-Date.parse(a.createdAt)),latest=moments[0],ownLatest=moments.find(m=>(m.friendId||'zhixu')===(state.activeFriendId||'zhixu'));
     $('#companionLatestMoment').textContent=ownLatest?.content||'还没有动态，陪伴慢慢发生。';
     $('#momentUnread').hidden=!latest||feedOpen||Date.parse(latest.createdAt)<=Date.parse(state.momentsSeenAt||0);
     window.momentUI?.render();
@@ -89,15 +89,16 @@
   new MutationObserver(()=>{if(!profileModal.classList.contains('hidden')&&!$('#companionForm').hidden)$('#companionStatus').textContent=$('#settingsStatus').textContent;if(!selfModal.classList.contains('hidden'))$('#selfProfileStatus').textContent=$('#settingsStatus').textContent;}).observe($('#settingsStatus'),{childList:true,characterData:true,subtree:true});
   function stableState(){return JSON.stringify([state.activeFriendId,state.settings,state.tasks,state.moments,state.momentActivity]);}
   async function considerMoment(){
-    if(momentBusy||agentBusy||friendSwitching||supervisionBusy||chatClearing||profileSaving||selfSaving||!state.settings.momentsEnabled||!state.settings.apiKey||Date.now()-lastLocalAttempt<20*60000||document.querySelector('.modal:not(.hidden)'))return;
+    if(momentBusy||agentBusy||friendSwitching||supervisionBusy||chatClearing||profileSaving||selfSaving||!state.settings.momentsEnabled||!state.settings.apiKey||(window.recordBook.today(new Date(lastLocalAttempt).toISOString())&&Date.now()-lastLocalAttempt<20*60000)||document.querySelector('.modal:not(.hidden)'))return;
     const lastUser=[...state.messages].reverse().find(m=>m.role==='user');if(lastUser&&Date.now()-Date.parse(lastUser.createdAt)<90000)return;
     momentBusy=true;const before=stableState(),sourceIds=new Set(state.messages.map(m=>m.id));
     try{
       const result=await window.humanDispatch.considerMoment();if(result.activity)lastLocalAttempt=Date.now();for(let n=0;agentBusy&&n<1200&&!chatClearing&&before===stableState();n++)await new Promise(resolve=>setTimeout(resolve,250));if(agentBusy||chatClearing||before!==stableState()||(sourceIds.size&&!state.messages.some(m=>sourceIds.has(m.id))))return;
       if(!result.activity)return;
+      if(result.moment&&((result.moment.friendId||'zhixu')!==(state.activeFriendId||'zhixu')||!window.recordBook.today(result.moment.createdAt)||Date.parse(result.moment.createdAt)>Date.now()))return;
       const previous={moments:state.moments,momentActivity:state.momentActivity,messages:[...state.messages]};
       state.momentActivity=result.activity;
-      if(result.moment){state.moments=[...(state.moments||[]),result.moment].slice(-100);appendMessage('assistant',result.moment.content,'瞬笺',null,{kind:'moment',momentId:result.moment.id});}
+      if(result.moment){state.moments=[...(state.moments||[]),result.moment].slice(-100);appendMessage('assistant',result.moment.content,'瞬笺',null,{kind:'moment',momentId:result.moment.id,friendId:result.moment.friendId||'zhixu'});}
       try{await save();renderMessages();render();}catch(error){Object.assign(state,previous);throw error;}
     }catch{/* A failed background reflection stays quiet; it never blocks chatting. */}
     finally{momentBusy=false;}

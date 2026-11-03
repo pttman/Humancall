@@ -6,12 +6,11 @@
 
 ## 下载与使用
 
-当前桌面版本 **v0.1.21**，完整改动见 [更新日志](CHANGELOG.md)。
+当前桌面版本 **v0.1.22**，完整改动见 [更新日志](CHANGELOG.md)。
 
 **[前往 GitHub Release 下载最新版](https://github.com/pttman/Humancall/releases/latest)**
 
 提供 Windows x64 安装程序和 macOS 通用 DMG（Apple 芯片 / Intel，macOS 11 及以上），无需安装 Node.js 或准备开发环境。
-
 
 **Windows**
 

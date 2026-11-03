@@ -86,6 +86,8 @@ async function main() {
       return { backend: true, friends: true, composer: true, settings: true };
     }.toString() + ')()');
     console.log('Local API and UI passed: ' + JSON.stringify(result));
+    const moments=await evaluate('('+require('./moments-ui-check.cjs').toString()+')()');
+    console.log('Packaged moments regression passed: '+JSON.stringify(moments));
     // Exercise a native close, as the title-bar button does. window.close() from
     // renderer JavaScript follows a different Chromium teardown path.
     const nativeTargets = await (await fetch('http://127.0.0.1:19223/json/list')).json();
