@@ -23,6 +23,7 @@
     onBubblePrune: desktop?.onBubblePrune || (fn=>listeners.prune.push(fn)),
     onIdentityUpdate: desktop?.onIdentityUpdate || (fn=>listeners.identity.push(fn)),
     clearBubbles: desktop?.clearBubbles || (async()=>emit('clear')),
+    notifyReply: desktop?.notifyReply || (async payload=>{if(!document.hidden)return false;return window.humanDispatch.notify(payload);}),
     askAI: payload => request('ai/chat', 'POST', payload),
     exportData: async () => { const state = await request('backup'); const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = '人类调度-备份.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return { canceled: false, filePath: a.download }; },
     importData: () => new Promise((resolve, reject) => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.oncancel = () => resolve({ canceled: true }); input.onchange = async () => { try { if (!input.files.length) return resolve({ canceled: true }); resolve(await request('backup', 'POST', JSON.parse(await input.files[0].text()))); } catch (error) { reject(error); } }; input.click(); }),

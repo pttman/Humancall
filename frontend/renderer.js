@@ -335,7 +335,7 @@ function isClearRequest(input) { return /(?:删除|清空|清除).*(?:所有|全
 function isClearConfirmation(input) { return /^(确认|确定|是的|好的|执行)[：:\s]*(清空|删除)?(所有|全部)?(任务列表|任务)?$/.test(input) || /确认(清空|删除)(所有|全部)?任务/.test(input); }
 function isClearCancellation(input) { return /^(取消|不要了|算了|暂不清空|不清空)/.test(input); }
 function isDeleteConfirmation(input) { return /^(确认|确定|是的|好的|执行)[：:\s]*(删除|删掉|移除)(这个|该|当前)?(任务|工作)?/.test(input); }
-function isTomorrowSnoozeRequest(input) { return /(推到明天|明天再做|明天做|推迟到明天|延期到明天)/.test(input); }
+function isTomorrowSnoozeRequest(input) { return window.taskSchedule.explicitTomorrow(input); }
 function isSnoozeRequest(input) { return /(再给我|延期|晚点|稍后|推到明天|明天再做|明天做|推迟到明天|延期到明天)/.test(input) && /(分钟|分|小时|时|晚点|稍后|明天)/.test(input); }
 function isRestRequest(input) { return /^(我先)?(休息|歇)(一会|一会儿|会|一下|(?:\d+|[一二三四五六七八九十]+|半)\s*(分钟|分|小时|时))?(吧|下)?$/.test(input.trim()); }
 function minutesFromInput(input, fallback = 10) {
@@ -412,8 +412,11 @@ async function handleMessage(text, fromBubble = false, context = null) {
   if(friendSwitching){showToast('正在切换朋友，请稍候');return;}
   if(chatClearing){showToast('正在清空聊天，请稍候');return;}
   if (agentBusy) { if (fromBubble) { bubbleReplyQueue.push({text,fromBubble,context}); showToast('气泡回复已接收，稍后处理'); } else showToast('正在处理上一条消息，请稍候'); return; }
+  if(context?.friendId&&context.friendId!==(state.activeFriendId||'zhixu')&&window.friends.ids.includes(context.friendId)){if(!await window.friendsUI.select(context.friendId))return;}
+  const sourceFriendId=state.activeFriendId||'zhixu';
   agentBusy = true; document.body.classList.add('agent-running'); syncComposer();
-  try { await handleMessageInternal(text, fromBubble, context); }
+  const previousReplies=new Set(state.messages.filter(m=>m.role==='assistant').map(m=>m.id));let notice;
+  try { notice=await handleMessageInternal(text, fromBubble, context); }
   catch (error) {
     // A lost response or conflict may mean the server has newer state. Never save a stale snapshot.
     try {
@@ -424,6 +427,10 @@ async function handleMessage(text, fromBubble = false, context = null) {
     }
   }
   finally { agentBusy = false; document.body.classList.remove('agent-running'); $('#chatInput').disabled = false; $('#chatInput').focus(); syncComposer(); const next=bubbleReplyQueue.shift(); if (next) queueMicrotask(()=>handleMessage(next.text,next.fromBubble,next.context)); }
+  if(!fromBubble&&!notice?.silent){
+    const reply=[...state.messages].reverse().find(m=>m.role==='assistant'&&!['sticker','moment','reminder'].includes(m.kind)&&!previousReplies.has(m.id));
+    if(reply)try{await stateSaveQueue;await window.humanDispatch.notifyReply({ ...notice,messageId:reply.id,friendId:sourceFriendId,title:window.friends.identity(state,sourceFriendId).assistantName+'回复',body:reply.content });}catch{}
+  }
 }
 async function handleMessageInternal(text, fromBubble = false, context = null) {
   const input = text.trim(); if (!input) return;
@@ -472,7 +479,7 @@ async function handleMessageInternal(text, fromBubble = false, context = null) {
       return;
     }
   }
-  const messages = state.messages.filter(m=>!['moment','sticker'].includes(m.kind)).map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', content: message.content, sticker:message.sticker }));
+  const messages = state.messages.filter(m=>!['moment','sticker'].includes(m.kind)).map((message) => ({ role: message.role === 'assistant' ? 'assistant' : 'user', id:message.id,createdAt:message.createdAt,kind:message.kind,context:message.context,content: message.content, sticker:message.sticker }));
   await save();
   const result = await window.humanDispatch.askAI({ text: input, messages, context });
   if (result.applied && result.state) Object.assign(state, result.state);
@@ -511,6 +518,7 @@ async function handleMessageInternal(text, fromBubble = false, context = null) {
   }
   if(executionMeta){const replyMessage=[...state.messages].reverse().find(m=>m.role==='assistant'&&m.kind!=='sticker');if(replyMessage)replyMessage.execution=executionMeta;}
   await save(); renderAll(); $('#chatInput').disabled = false; $('#chatInput').focus();
+  return {silent:result.silent,sticker:result.sticker,taskId:result.question?.taskId||context?.taskId,questionId:result.question?.id,quickActions:(result.quickReplies||result.question?.quickReplies||[]).map(message=>({label:message,message}))};
 }
 
 function scheduleSupervision(task, minutes) {
@@ -522,7 +530,7 @@ function scheduleSupervision(task, minutes) {
 
 let supervisionBusy = false;
 async function requestCheckIn(payload = {}) {
-  if (agentBusy || supervisionBusy || chatClearing) return false;
+  if (agentBusy || supervisionBusy || chatClearing || friendSwitching) return false;
   supervisionBusy = true;
   try {
     if(window.conversationState.reconcile(state))await save();
@@ -532,28 +540,40 @@ async function requestCheckIn(payload = {}) {
     if (result.suppressed) return !result.retry;
     if(!window.conversationState.isOpenTask(state.tasks.find(t=>t.id===result.taskId)))return true;
     if (agentBusy || JSON.stringify([state.tasks,state.messages,state.settings,state.agentContext]) !== before) return false;
+    if(result.bubbleId&&state.messages.some(m=>m.id===result.bubbleId))return true;
     if (result.question) state.agentContext={...state.agentContext,pendingQuestion:result.question};
-    appendMessage('assistant',result.body,result.source==='local'?'本地提醒':'主动确认安排',result.sticker,{id:result.bubbleId,createdAt:result.generatedAt,context:{taskId:result.taskId,questionId:result.questionId}});
+    appendMessage('assistant',result.body,result.source==='local'?'本地提醒':'主动确认安排',result.sticker,{id:result.bubbleId||uid('checkin'),kind:'reminder',friendId:state.activeFriendId||'zhixu',createdAt:result.generatedAt||now(),context:{taskId:result.taskId,questionId:result.questionId}});
     await save(); renderMessages();
-    await window.humanDispatch.notify(result); return true;
+    await window.humanDispatch.notify({...result,friendId:state.activeFriendId||'zhixu'}).catch(()=>{}); return true;
   } catch { return false; /* Retry without generating a misleading fixed nudge. */ }
   finally { supervisionBusy=false; }
 }
 async function notifyTask(task) { return state.settings.notifications ? requestCheckIn({taskId:task.id,reason:'scheduled'}) : false; }
 
+function recordProactive(payload,id,context={}) {
+  const friendId=state.activeFriendId||'zhixu',messageId='notice-'+id;
+  if(!state.messages.some(m=>m.id===messageId))appendMessage('assistant',payload.body,payload.title,null,{id:messageId,kind:'reminder',friendId,context});
+  return {...payload,bubbleId:messageId,messageId,friendId,...context};
+}
+let supervisionScheduleBusy=false;
 async function checkSupervision() {
-  if (agentBusy) return;
-  const current = new Date(); let changed = window.conversationState.reconcile(state);
-  for (const event of state.supervisionEvents) {
-    if (!event.sent && new Date(event.scheduledAt) <= current) {
-      const task = event.taskId ? state.tasks.find((item) => item.id === event.taskId) : null;
-      if (task && !await notifyTask(task)) continue;
-      else if (event.type === 'rest_end' && state.settings.notifications) await window.humanDispatch.notify({ title: '人类调度 · 休息结束', body: event.body || '休息结束。回来决定下一项工作。' });
-      event.sent = true; changed = true;
+  if(agentBusy||supervisionScheduleBusy||chatClearing||friendSwitching)return;
+  supervisionScheduleBusy=true;
+  try{
+    const current=new Date();let changed=window.conversationState.reconcile(state);const notices=[];
+    for(const event of state.supervisionEvents){
+      if(agentBusy)break;
+      if(!event.sent&&new Date(event.scheduledAt)<=current){
+        const task=event.taskId?state.tasks.find(item=>item.id===event.taskId):null;
+        if(task&&!await notifyTask(task))continue;
+        if(event.type==='rest_end'&&state.settings.notifications)notices.push(recordProactive({title:'人类调度 · 休息结束',body:event.body||'休息结束。回来决定下一项工作。'},event.id,{eventId:event.id}));
+        event.sent=true;changed=true;
+      }
     }
-  }
-  if (state.settings.quietUntil && new Date(state.settings.quietUntil) <= current) { state.settings.quietUntil = ''; changed = true; }
-  if (changed) { await save(); renderAll(); }
+    if(state.settings.quietUntil&&new Date(state.settings.quietUntil)<=current){state.settings.quietUntil='';changed=true;}
+    if(changed){await save();renderAll();}
+    for(const notice of notices)await window.humanDispatch.notify(notice).catch(()=>{});
+  }finally{supervisionScheduleBusy=false;}
 }
 
 function nextReminderAt(reminder, current) {
@@ -569,20 +589,21 @@ function nextReminderAt(reminder, current) {
   return '';
 }
 
+let reminderBusy=false;
 async function checkReminders() {
-  if (agentBusy) return;
-  const current = new Date();
-  let changed = false;
-  for (const reminder of state.reminders || []) {
-    if (reminder.enabled === false || !reminder.nextAt || new Date(reminder.nextAt) > current) continue;
-    const nextAt = nextReminderAt(reminder, current);
-    reminder.lastTriggeredAt = current.toISOString();
-    reminder.enabled = Boolean(nextAt);
-    reminder.nextAt = nextAt || reminder.nextAt;
-    changed = true;
-    if (state.settings.notifications) await window.humanDispatch.notify({ title: '人类调度 · 提醒', body: `现在该做：${reminder.title}` });
-  }
-  if (changed) { await save(); renderAll(); }
+  if(agentBusy||reminderBusy||chatClearing||friendSwitching)return;
+  reminderBusy=true;
+  try{
+    const current=new Date(),notices=[];let changed=false;
+    for(const reminder of state.reminders||[]){
+      if(reminder.enabled===false||!reminder.nextAt||new Date(reminder.nextAt)>current)continue;
+      const scheduledAt=reminder.nextAt,nextAt=nextReminderAt(reminder,current);
+      reminder.lastTriggeredAt=current.toISOString();reminder.enabled=Boolean(nextAt);reminder.nextAt=nextAt||scheduledAt;changed=true;
+      if(state.settings.notifications)notices.push(recordProactive({title:'人类调度 · 提醒',body:`现在该做：${reminder.title}`},reminder.id+'-'+scheduledAt,{reminderId:reminder.id,scheduledAt}));
+    }
+    if(changed){await save();renderAll();}
+    for(const notice of notices)await window.humanDispatch.notify(notice).catch(()=>{});
+  }finally{reminderBusy=false;}
 }
 
 function ensurePassiveSettings() { if ($('#passiveNudgesInput')) return; const holder = document.createElement('div'); holder.className = 'form-grid passive-settings'; holder.innerHTML = '<label>被动督促频率（分钟）<input id="passiveNudgesInput" type="number" min="5" max="120" /></label><label class="checkbox-label passive-toggle"><input id="passiveNudgesEnabledInput" type="checkbox" /> 后台持续督促</label>'; $('#notificationsInput').closest('label').after(holder); }

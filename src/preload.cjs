@@ -4,6 +4,7 @@ contextBridge.exposeInMainWorld('desktopDispatch', {
 
   chooseDataDirectory: () => ipcRenderer.invoke('storage:choose'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),
+  notifyReply: payload => ipcRenderer.invoke('reply:completed',payload),
   notify: (payload) => ipcRenderer.invoke('notification:show', payload),
   showBubble: (payload) => ipcRenderer.invoke('bubble:show', payload),
   clearBubbles: () => ipcRenderer.invoke('bubble:clear-all'),

@@ -1,3 +1,4 @@
+const friends=require('../frontend/friends.js');
 const chatProfile=require('../frontend/chat-profile.js');
 const conversationState=require('../frontend/conversation-state.js');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, screen, dialog, shell } = require('electron');
@@ -52,6 +53,7 @@ function createWindow() {
     title: '人类调度 ' + app.getVersion(),
     icon: appIconPath,
     webPreferences: {
+      backgroundThrottling: false,
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
       nodeIntegration: false
@@ -121,18 +123,20 @@ function positionBubble(requestedHeight) {
 
 function pruneBubbles(state) {
   const current=conversationState.bubbleState(state);queuedBubbles=queuedBubbles.filter(p=>conversationState.isBubbleLive(p,current));
-  if(bubbleWindow&&!bubbleWindow.isDestroyed()&&bubbleLoaded){bubbleWindow.webContents.send('bubble:prune',current);bubbleWindow.webContents.send('identity:update',chatProfile.get(state.settings));}
+  if(bubbleWindow&&!bubbleWindow.isDestroyed()&&bubbleLoaded){bubbleWindow.webContents.send('bubble:prune',current);bubbleWindow.webContents.send('identity:update',{...chatProfile.get(state.settings),friendId:state.activeFriendId||'zhixu'});}
 }
 function showBubble(payload) {
   if (!bubbleWindow) return;
-  if (!bubbleLoaded) { queuedBubbles.push(payload); return; }
+  if (!bubbleLoaded) { queuedBubbles.push(payload); return true; }
   const currentState = readState();
   if(!conversationState.isBubbleLive(payload,conversationState.bubbleState(currentState)))return false;
-  payload = { ...payload, identity:chatProfile.get(currentState.settings), bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'pastel-mix' };
+  const friendId=friends.ids.includes(payload.friendId)?payload.friendId:currentState.activeFriendId||'zhixu';
+  payload = { ...payload, friendId,identity:friends.identity(currentState,friendId), bubbleId: payload.bubbleId || `bubble_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, theme: payload.theme || currentState.settings.theme || 'pastel-mix' };
   positionBubble();
   bubbleWindow.webContents.send('bubble:show', payload);
   bubbleWindow.showInactive();
   bubbleWindow.moveTop();
+  return true;
 }
 
 function hideBubble() {
@@ -201,6 +205,18 @@ app.whenReady().then(async () => {
   ipcMain.handle('bubble:clear-all',()=>{queuedBubbles=[];if(bubbleWindow&&!bubbleWindow.isDestroyed())bubbleWindow.webContents.send('bubble:clear');hideBubble();return true;});
   ipcMain.handle('bubble:hide', () => { hideBubble(); return true; });
   ipcMain.handle('bubble:show', (_, payload) => { showBubble(payload); return true; });
+  const completedReplies=new Set();
+  ipcMain.handle('reply:completed', (_, payload) => {
+    if(!mainWindow||mainWindow.isDestroyed()||(mainWindow.isVisible()&&!mainWindow.isMinimized()))return false;
+    const state=readState(),friendId=payload?.friendId||state.activeFriendId||'zhixu';
+    if(state.settings.notifications===false||!friends.ids.includes(friendId))return false;
+    const messages=friendId===state.activeFriendId?state.messages:state.friends?.[friendId]?.messages||[];
+    const message=messages.find(m=>m.id===payload.messageId&&m.role==='assistant'&&!['sticker','moment','reminder'].includes(m.kind));
+    if(!message||completedReplies.has(message.id))return false;
+    const shown=showBubble({...payload,friendId,body:message.content,bubbleId:'reply-'+message.id});
+    if(shown){completedReplies.add(message.id);if(completedReplies.size>500)completedReplies.delete(completedReplies.values().next().value);}
+    return Boolean(shown);
+  });
   ipcMain.handle('bubble:resize', (_, requestedHeight) => {
     if (!bubbleWindow || bubbleWindow.isDestroyed()) return false;
     return positionBubble(requestedHeight);

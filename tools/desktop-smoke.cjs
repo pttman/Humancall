@@ -94,6 +94,8 @@ async function main() {
     native = await debuggerClient(nativeTargets[0].webSocketDebuggerUrl);
     const mainWindow = 'process.mainModule.require("electron").BrowserWindow.getAllWindows().find(w => /index\\.html$/.test(w.webContents.getURL()))';
     assert.equal(await native.evaluate('process.mainModule.require("electron").app.getVersion()'), require('../package.json').version);
+    const notifications=await require('./notifications-check.cjs')({evaluate,nativeEvaluate:native.evaluate,mainWindow});
+    console.log('Packaged notifications regression passed: '+JSON.stringify(notifications));
     await native.evaluate(mainWindow + '.close(); true');
     await wait(500);
     assert.equal(await native.evaluate(mainWindow + '.isVisible()'), false, 'Native close should hide the main window');

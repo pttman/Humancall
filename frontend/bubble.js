@@ -99,7 +99,7 @@ async function send(text) {
   const current = currentBubble();
   if (current) bubbleItems.splice(activeIndex, 1);
   if (bubbleItems.length) activeIndex = Math.min(activeIndex, bubbleItems.length - 1);
-  await window.humanDispatch.bubbleSubmit({text:text.trim(),context:current ? {taskId:current.taskId,questionId:current.questionId,body:current.body} : null});
+  await window.humanDispatch.bubbleSubmit({text:text.trim(),context:current ? {friendId:current.friendId,messageId:current.messageId,reminderId:current.reminderId,taskId:current.taskId,questionId:current.questionId,body:current.body} : null});
   if (bubbleItems.length) window.humanDispatch.showBubble(bubbleItems[activeIndex]);
 }
 
@@ -126,5 +126,5 @@ $('.bubble-shell').addEventListener('wheel', (event) => {
 // Image loads and font layout can change the reminder height after its first paint.
 let resizeFrame;new ResizeObserver(()=>{cancelAnimationFrame(resizeFrame);resizeFrame=requestAnimationFrame(resizeToContent);}).observe($('.bubble-shell'));
 
-function applyIdentity(value){const identity=window.chatProfile.get(value);$('#bubbleAssistantName').textContent=identity.assistantName;$('#bubbleAvatarImage').src=identity.assistantAvatar;$('#bubbleInput').placeholder='回复'+identity.assistantName+'……';for(const item of bubbleItems)item.identity=identity;}
-window.humanDispatch.onIdentityUpdate(applyIdentity);
+function applyIdentity(value){const identity=window.chatProfile.get(value);$('#bubbleAssistantName').textContent=identity.assistantName;$('#bubbleAvatarImage').src=identity.assistantAvatar;$('#bubbleInput').placeholder='回复'+identity.assistantName+'……';}
+window.humanDispatch.onIdentityUpdate(value=>{for(const item of bubbleItems)if(!value.friendId||!item.friendId||item.friendId===value.friendId)item.identity=value;const current=currentBubble();if(!current||!value.friendId||!current.friendId||current.friendId===value.friendId)applyIdentity(value);});

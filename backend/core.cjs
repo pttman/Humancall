@@ -1,3 +1,4 @@
+const temporal=require('./temporal-context.cjs');
 const chatProfile=require('../frontend/chat-profile.js');
 const companion=require('../frontend/companion.js');
 const friends=require('../frontend/friends.js');
@@ -164,7 +165,7 @@ async function callModel({ settings, messages, tasks, reminders }) {
     body: JSON.stringify({
       model: settings.model,
       temperature: 0.3,
-      messages: [{ role: 'system', content: system }, ...messages.slice(-20)],
+      messages: [{ role: 'system', content: system+'\n当前时间：'+JSON.stringify(temporal.stamp(new Date()))+'。'+temporal.rules }, ...temporal.history(messages,messages.at(-1)?.content||'')],
       response_format: { type: 'json_object' }
     })
   });

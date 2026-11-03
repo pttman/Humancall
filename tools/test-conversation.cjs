@@ -18,7 +18,7 @@ app.whenReady().then(async()=>{
   });await new Promise(r=>mock.listen(0,'127.0.0.1',r));
   await win.webContents.executeJavaScript(`(async()=>{state.settings.apiKey='test';state.settings.baseUrl='http://127.0.0.1:${mock.address().port}/v1';await save();document.querySelector('#laterConfigButton').click();await handleMessage('上午要开个会',true);})()`);
   assert.equal(await win.webContents.executeJavaScript('state.tasks.length'),1,'追问前会议已记入清单');
-  const bubble=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('bubble.html'));assert.ok(bubble);await delay(100);
+  const bubble=BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().endsWith('bubble.html'));assert.ok(bubble);for(let i=0;i<60;i++){if(await bubble.webContents.executeJavaScript("document.querySelector('#bubbleBody').textContent.includes('几点开始')"))break;await delay(50);}
   assert.match(await bubble.webContents.executeJavaScript("document.querySelector('#bubbleBody').textContent"),/几点开始/);
   assert.equal(await bubble.webContents.executeJavaScript("document.querySelectorAll('#quickActions button').length"),2);
   await bubble.webContents.executeJavaScript("document.querySelector('#quickActions button').click()");
