@@ -23,13 +23,16 @@ module.exports = async function checkMomentsUI() {
     check(notice.querySelector('.avatar-image').getAttribute('src')==='/avatars/zhixu.png','Moment notice avatar');
     check(notice.querySelector('.moment-message-card span').textContent.includes('知序'),'Moment notice label');
     $('#momentsNavButton').click();
-    check($('#momentsOwnerName').textContent==='所有人的瞬笺'&&$('#momentsOwnerAvatar').hidden,'Shared feed must not impersonate the active friend');
+    check($('.moments-owner').hidden&&$('.moments-owner').getClientRects().length===0,'Shared feed must hide the entire owner card without leaving layout space');
     check(document.querySelectorAll('.moment-post').length===2,'Today excludes yesterday and future');
     check($('#moment-zx-today .moment-author').textContent==='知序','Zhixu author');
     check($('#moment-fy-today .moment-author').textContent==='枫言','Fengyan author');
     check($('#moment-zx-today .moment-post-avatar').dataset.friendId==='zhixu','Zhixu profile link');
     document.querySelector('[data-moment-person="zhixu"]').click();
-    check($('#momentsOwnerName').textContent==='知序'&&!$('#momentsOwnerAvatar').hidden,'Filtered owner');
+    check(!$('.moments-owner').hidden&&$('#momentsOwnerName').textContent==='知序'&&!$('#momentsOwnerAvatar').hidden,'Filtered owner');
+    document.querySelector('[data-moment-person="luye"]').click();check(!$('.moments-owner').hidden&&$('#momentsOwnerName').textContent==='枫言','Fengyan owner returns');
+    document.querySelector('[data-moment-person="all"]').click();check($('.moments-owner').getClientRects().length===0,'Switching back to all hides the card again');
+    document.querySelector('[data-moment-person="zhixu"]').click();
     check(document.querySelectorAll('.moment-post').length===1,'Friend filter');
     document.querySelector('[data-moment-period="all"]').click();
     check(Boolean($('#moment-zx-old'))&&!$('#moment-zx-future'),'Explicit history retains old posts and excludes future');

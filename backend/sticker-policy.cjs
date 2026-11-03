@@ -19,11 +19,11 @@ async function automaticSticker({settings,state,text,finished,search,select,dead
   if(!finished.stickerMood&&!finished.stickerQuery || finished.stickerMood==='none')return {sticker:null};
   const reason=stickerPolicy({settings,state,text});if(reason)return {sticker:null,reason};
   if(Date.now()+15000>deadline)return {sticker:null,reason:'保留回复时限，本轮先发文字'};
-  const args={mood:finished.stickerMood,query:finished.stickerQuery,animated:true};
+  const args={mood:finished.stickerMood,query:finished.stickerQuery};
   let output=await search(args,settings);
-  const eligible=items=>items.filter(s=>!stickerPolicy({settings,state,text,id:s.id})).slice(0,6);
+  const eligible=items=>items.filter(s=>!stickerPolicy({settings,state,text,id:s.id})).slice(0,12);
   let candidates=eligible(output.stickers);
-  if(!candidates.length&&finished.stickerQuery&&MOODS.includes(finished.stickerMood)&&Date.now()+15000<deadline){output=await search({mood:finished.stickerMood,animated:true},settings);candidates=eligible(output.stickers);}
+  if(!candidates.length&&finished.stickerQuery&&MOODS.includes(finished.stickerMood)&&Date.now()+15000<deadline){output=await search({mood:finished.stickerMood},settings);candidates=eligible(output.stickers);}
   const sticker=candidates.length?(select?await select({userText:text,reply:finished.reply,candidates,mood:finished.stickerMood,deadline}):require('./sticker-selector.cjs').rankForReply({reply:finished.reply,mood:finished.stickerMood,candidates})):null;
   return {sticker:sticker?{...sticker}:null,source:output.source,fallback:output.fallback,reason:sticker?null:'没有找到合适且未重复的动图'};
 }

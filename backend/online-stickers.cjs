@@ -1,10 +1,11 @@
 const {resolveSticker}=require('../frontend/online-sticker.js');
+const {shuffled}=require('./sticker-random.cjs');
 const CATALOG='https://zhaoolee.com/ChineseBQB/catalog/search.json';
 const moods={acknowledge:['收到','好的','谢谢','点头'],encourage:['加油','鼓掌','厉害','你可以'],celebrate:['开心','鼓掌','庆祝','好耶'],rest:['摸鱼','睡觉','休息','下班'],comfort:['抱抱','辛苦','摸摸','安慰'],curious:['思考','疑问','问号','好奇']};
 const aliases={clap:'鼓掌',clapping:'鼓掌',thumbsup:'厉害',ok:'好的',check:'收到',muscle:'加油',encouragement:'加油',encourage:'加油',congratulations:'庆祝',party:'开心',tada:'开心',confetti:'庆祝',sleep:'睡觉',sleepy:'睡觉',rest:'休息',hug:'抱抱',hugging:'抱抱',heart:'抱抱',thinking:'思考',curious:'好奇',cat:'猫',panda:'熊猫',thank:'谢谢',thanks:'谢谢',smile:'开心',joy:'开心','猫猫':'猫','熊猫头':'熊猫','金馆长':'熊猫','摸摸鱼':'摸鱼'};
 function termsFor(query,mood){const text=String(query||'').toLowerCase();const words=text.match(/[a-z]+|[\u4e00-\u9fff]+/g)||[];const terms=words.map(w=>aliases[w]||w).filter(w=>!['表情','表情包','动图','gif','动态','中国','中文'].includes(w));return [...new Set(terms.length?terms:(moods[mood]||moods.celebrate))].slice(0,12);}
 function networkFetch(...args){if(process.versions.electron){const net=require('electron').net;if(typeof net?.fetch==='function')return net.fetch(...args);}return fetch(...args);}
-function createOnlineSearch({fetchImpl=networkFetch,now=Date.now}={}){
+function createOnlineSearch({fetchImpl=networkFetch,now=Date.now,random=Math.random}={}){
  let catalog=null,expires=0,inflight=null;const checks=new Map();
  async function loadCatalog(){
   if(catalog&&now()<expires)return catalog;if(inflight)return inflight;
@@ -19,7 +20,10 @@ function createOnlineSearch({fetchImpl=networkFetch,now=Date.now}={}){
  return async function search({query,mood,animated}={}){
   if(query!==undefined&&(typeof query!=='string'||query.trim().length>80))throw Error('表情搜索词应在 80 字以内');
   const terms=termsFor(query,mood);if(!terms.length)return [];const items=await loadCatalog();
-  const candidates=items.map(item=>{const direct=terms.reduce((n,w)=>n+(item.caption.toLowerCase().includes(w)?12:item.text.includes(w)?4:0),0);return {...item,score:direct+(direct&&item.animated&&animated!==false?2:0)};}).filter(i=>i.score>0&&(animated!==false||!i.animated)).sort((a,b)=>b.score-a.score).slice(0,12);
+  const matches=[...new Map(items.filter(item=>terms.some(word=>item.text.includes(word))&&(animated!==false||!item.animated)).map(item=>[item.id,item])).values()];
+  // Vary the retrieved pool as well as the final choice. A stable top six
+  // would keep bringing the same files back, even with a random final pick.
+  const candidates=shuffled(matches,random).slice(0,12);
   const found=[];for(let index=0;index<candidates.length&&found.length<6;index+=6){const valid=await Promise.all(candidates.slice(index,index+6).map(async item=>{const s=resolveSticker(item);return s&&await verify(s)?s:null;}));found.push(...valid.filter(Boolean));}
   if(candidates.length&&!found.length)throw Error('中文表情媒体暂不可用');return found.slice(0,6);
  };

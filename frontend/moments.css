@@ -10,3 +10,5 @@
 .record-detail .moment-picture{margin:12px 0}.moment-message-thumb{display:block;width:auto;max-width:110px;max-height:90px;object-fit:contain;border-radius:3px;margin:0 0 10px}
 :root[data-theme="midnight-blue"] .moment-author{color:#9eafd0}:root[data-theme="midnight-blue"] .moments-cover{background:linear-gradient(120deg,#2c4039,#4d6050 68%,#65735f)}:root[data-theme="midnight-blue"] .moments-view[data-friend-id="luye"] .moments-cover{background:linear-gradient(120deg,#4b3531,#755040 65%,#8a654c)}
 @media(max-width:1000px){.moment-toolbar{padding:10px 20px;gap:9px}.moment-feed{padding:0 20px}.moment-people{gap:2px}.moment-people button{padding:4px 6px}.moments-heading{padding:16px 20px}}@media(max-width:540px){.moment-toolbar{align-items:flex-start;gap:8px}.moment-people{flex-wrap:wrap}.moment-picture{max-width:min(205px,100%)}.moment-post p{font-size:13px}.moment-photo-card{max-width:calc(100vw - 34px)}}
+
+.moments-owner[hidden]{display:none!important}

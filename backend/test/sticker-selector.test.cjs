@@ -1,10 +1,23 @@
-const {test}=require('node:test');const assert=require('node:assert/strict');const {selectStickerForReply}=require('../sticker-selector.cjs');const {runAgent}=require('../agent.cjs');const {chooseSticker}=require('../stickers.cjs');const {stickerPolicy,recentAssistantTurns}=require('../sticker-policy.cjs');
+const {test}=require('node:test');const assert=require('node:assert/strict');const {selectStickerForReply,rankForReply}=require('../sticker-selector.cjs');const {runAgent}=require('../agent.cjs');const {chooseSticker}=require('../stickers.cjs');const {stickerPolicy,recentAssistantTurns}=require('../sticker-policy.cjs');
 const call=(name,args)=>({role:'assistant',tool_calls:[{id:Math.random().toString(),type:'function',function:{name,arguments:JSON.stringify(args)}}]});const settings={apiKey:'synthetic',baseUrl:'https://api.deepseek.com',model:'test'};
-test('模型收到当前问题和完整回答，从候选中选择更贴合回答的一张，而非第一张',async()=>{
+test('模型收到当前问题和完整回答，筛出贴切候选，排除反话',async()=>{
  const wrong={id:'wrong',label:'收到办不到',animated:true},right={id:'right',label:'收到，这就安排',animated:false};const result=await selectStickerForReply({settings,userText:'请帮我记录这项安排',reply:'收到，已经帮你记下来了。',candidates:[wrong,right],fetchImpl:async(url,opts)=>{const body=JSON.parse(opts.body);assert.equal(body.tool_choice,'auto');const input=JSON.parse(body.messages.at(-1).content);assert.equal(input.assistantAnswer,'收到，已经帮你记下来了。');assert.equal(input.userMessage,'请帮我记录这项安排');assert.deepEqual(input.candidates.map(s=>s.id),['wrong','right']);assert.match(body.messages[0].content,/反话|否定/);return Response.json({choices:[{message:call('choose_sticker',{id:'right'})}]});}});assert.equal(result.id,'right');
 });
-test('匹配模型可选择不发图，不接受候选以外 ID，文本 JSON 协议兼容',async()=>{
+test('匹配模型可选择不发图，不接受候选以外 ID，旧单选 JSON 协议兼容',async()=>{
  for(const id of ['none','invented','cheer']){const result=await selectStickerForReply({settings,userText:'测试',reply:'先严肃处理。',candidates:[chooseSticker('cheer')],fetchImpl:async()=>Response.json({choices:[{message:{content:JSON.stringify({id})}}]})});assert.equal(result?.id||null,id==='cheer'?'cheer':null);}
+});
+
+test('从全部符合语境的候选中随机选一张，不受先前首选、静态动态或重复 id 权重影响',async()=>{
+ const candidates=[{id:'wrong',label:'收到办不到',animated:true},{id:'one',label:'收到',animated:false},{id:'two',label:'好嘞',animated:true}];
+ for(const [random,expected] of [[()=>0,'one'],[()=>0.999999,'two']]){
+  const result=await selectStickerForReply({settings,userText:'帮我记下',reply:'记好了。',selectedId:'one',candidates,random,fetchImpl:async(_url,opts)=>{
+   const body=JSON.parse(opts.body),input=JSON.parse(body.messages.at(-1).content);assert.equal(input.previousChoice,undefined);assert.deepEqual(body.tools[0].function.parameters.required,['ids']);assert.match(body.messages[0].content,/所有符合语境/);
+   return Response.json({choices:[{message:call('choose_sticker',{ids:['one','one','two','invented']})}]});
+  }});assert.equal(result.id,expected);
+ }
+ const none=await selectStickerForReply({settings,candidates,fetchImpl:async()=>Response.json({choices:[{message:{content:'{"ids":[]}'}}]})});assert.equal(none,null);
+ const local=[chooseSticker('done'),chooseSticker('party'),chooseSticker('cheer')];
+ assert.equal(rankForReply({reply:'完成了',candidates:local,random:()=>0}).id,'done');assert.equal(rankForReply({reply:'完成了',candidates:local,selectedId:'done',random:()=>0.999999}).id,'party');
 });
 test('Agent 最终回答完成后再复核显式配图；不匹配或复核失败保留已执行任务与文字',async()=>{
  for(const failure of [false,true]){const state={settings,tasks:[{id:'one',status:'active'}],reminders:[],projects:[],messages:[],supervisionEvents:[]};const steps=[call('search_stickers',{mood:'encourage',source:'local'}),call('send_sticker',{id:'cheer'}),call('list_tasks',{}),call('set_plan',{steps:['完成任务']}),call('execute_actions',{actions:[{type:'complete_task',taskId:'one'}]}),call('finish',{reply:'已记录完成，可以休息一下。'})];let checked=false;const result=await runAgent({settings,state,text:'完成了，想歇一会',modelStep:async()=>steps.shift(),stickerSelect:async args=>{checked=true;assert.equal(args.reply,'已记录完成，可以休息一下。');assert.equal(args.selectedId,'cheer');if(failure)throw Error('offline');return null;}});assert.ok(checked);assert.equal(result.sticker,null);assert.equal(result.draft.tasks[0].status,'completed');assert.equal(result.reply,'已记录完成，可以休息一下。');}

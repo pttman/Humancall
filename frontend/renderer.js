@@ -75,11 +75,12 @@ function renderMessages() {
     const momentImage=window.momentMedia.get(moment?.image);
     const avatarFallback=window.chatProfile.defaultsFor({assistantFriendId:moment?.friendId||message.friendId||state.activeFriendId})[user?'userAvatar':'assistantAvatar'];
     const body=message.kind==='moment'?'<button type="button" class="moment-message-card" data-open-moments="'+escapeHtml(message.momentId||'')+'"><span>◉ '+escapeHtml(sender.assistantName)+'发了一条瞬笺</span><p>'+highlightChat(message.content)+'</p>'+(momentImage?'<img class="moment-message-thumb" src="'+escapeHtml(momentImage.url)+'" alt="配图" referrerpolicy="no-referrer" />':'')+'<small>看看这条动态 ›</small></button>':stickerOnly?stickerHost:'<div class="bubble">'+highlightChat(message.content)+trace+'</div>'+stickerHost;
+    const speakButton=user||stickerOnly||message.kind==='moment'?'':'<button type="button" class="speak-message" data-speak-message="'+escapeHtml(message.id)+'" aria-pressed="false" aria-label="朗读这条回复" title="朗读这条回复"><svg class="speech-speak-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><svg class="speech-stop-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>';
     const tools=stickerOnly?'':'<div class="message-tools">'+(message.meta?'<span class="message-meta">'+escapeHtml(message.meta)+'</span>':'')+'<button type="button" class="copy-message" data-copy-message="'+index+'" aria-label="复制这条消息">复制</button></div>';
-    return (showTime?'<div class="message-time">'+escapeHtml(formatChatTimestamp(message.createdAt))+'</div>':'')+'<div class="message '+(user?'user':'assistant')+(stickerOnly?' sticker-message':'')+'" data-message-id="'+escapeHtml(message.id)+'">'+(user?'<button type="button" class="avatar companion-avatar-button" data-open-user aria-label="查看我的资料" title="':'<button type="button" class="avatar companion-avatar-button" data-open-companion data-friend-id="'+escapeHtml(moment?.friendId||message.friendId||state.activeFriendId||'zhixu')+'" aria-label="查看人物资料" title="')+escapeHtml(user?identity.userName:sender.assistantName)+'"><img class="avatar-image" data-avatar-role="'+(user?'user':'assistant')+'" data-avatar-fallback="'+escapeHtml(avatarFallback)+'" src="'+escapeHtml(user?identity.userAvatar:sender.assistantAvatar)+'" alt="" />'+'</button>'+'<div class="message-content"><div class="sender-name">'+escapeHtml(user?identity.userName:sender.assistantName)+'<span class="sr-only">：</span></div>'+body+tools+'</div></div>';
+    return (showTime?'<div class="message-time">'+escapeHtml(formatChatTimestamp(message.createdAt))+'</div>':'')+'<div class="message '+(user?'user':'assistant')+(stickerOnly?' sticker-message':'')+'" data-message-id="'+escapeHtml(message.id)+'">'+(user?'<button type="button" class="avatar companion-avatar-button" data-open-user aria-label="查看我的资料" title="':'<button type="button" class="avatar companion-avatar-button" data-open-companion data-friend-id="'+escapeHtml(moment?.friendId||message.friendId||state.activeFriendId||'zhixu')+'" aria-label="查看人物资料" title="')+escapeHtml(user?identity.userName:sender.assistantName)+'"><img class="avatar-image" data-avatar-role="'+(user?'user':'assistant')+'" data-avatar-fallback="'+escapeHtml(avatarFallback)+'" src="'+escapeHtml(user?identity.userAvatar:sender.assistantAvatar)+'" alt="" />'+'</button>'+'<div class="message-content"><div class="sender-name">'+escapeHtml(user?identity.userName:sender.assistantName)+'<span class="sr-only">：</span>'+speakButton+'</div>'+body+tools+'</div></div>';
 
   }).join('')+'</div>';
-  window.stickerUI.mount(container,state.messages);
+  window.stickerUI.mount(container,state.messages);window.voiceUI?.sync();
   chatScroll.afterRender(state.messages);
   syncComposer();
   window.friendsUI?.render();
@@ -361,7 +362,7 @@ function tomorrowWorkStart() {
   return target;
 }
 
-function showBubbleReply(payload) { return window.humanDispatch.showBubble(payload); }
+function showBubbleReply(payload) { return window.humanDispatch.showBubble({...payload,suppressAlertSound:Boolean(window.voiceUI?.willAutoRead())}); }
 
 function normalizeTaskHierarchy(actions = [], input = '') {
   const taskActions = actions.filter((action) => action?.type === 'create_task');
@@ -412,7 +413,9 @@ async function handleMessage(text, fromBubble = false, context = null) {
   if(friendSwitching){showToast('正在切换朋友，请稍候');return;}
   if(chatClearing){showToast('正在清空聊天，请稍候');return;}
   if (agentBusy) { if (fromBubble) { bubbleReplyQueue.push({text,fromBubble,context}); showToast('气泡回复已接收，稍后处理'); } else showToast('正在处理上一条消息，请稍候'); return; }
+  if(modelTestController)resetModelTest();
   if(context?.friendId&&context.friendId!==(state.activeFriendId||'zhixu')&&window.friends.ids.includes(context.friendId)){if(!await window.friendsUI.select(context.friendId))return;}
+  if(text.trim())window.voiceUI?.stop();
   const sourceFriendId=state.activeFriendId||'zhixu';
   agentBusy = true; document.body.classList.add('agent-running'); syncComposer();
   const previousReplies=new Set(state.messages.filter(m=>m.role==='assistant').map(m=>m.id));let notice;
@@ -427,9 +430,9 @@ async function handleMessage(text, fromBubble = false, context = null) {
     }
   }
   finally { agentBusy = false; document.body.classList.remove('agent-running'); $('#chatInput').disabled = false; $('#chatInput').focus(); syncComposer(); const next=bubbleReplyQueue.shift(); if (next) queueMicrotask(()=>handleMessage(next.text,next.fromBubble,next.context)); }
-  if(!fromBubble&&!notice?.silent){
+  if(!notice?.silent){
     const reply=[...state.messages].reverse().find(m=>m.role==='assistant'&&!['sticker','moment','reminder'].includes(m.kind)&&!previousReplies.has(m.id));
-    if(reply)try{await stateSaveQueue;await window.humanDispatch.notifyReply({ ...notice,messageId:reply.id,friendId:sourceFriendId,title:window.friends.identity(state,sourceFriendId).assistantName+'回复',body:reply.content });}catch{}
+    if(reply)try{await stateSaveQueue;const voiceQueued=Boolean(window.voiceUI?.speakMessage(reply,{automatic:true,friendId:sourceFriendId}));if(!fromBubble)await window.humanDispatch.notifyReply({ ...notice,suppressAlertSound:voiceQueued,messageId:reply.id,friendId:sourceFriendId,title:window.friends.identity(state,sourceFriendId).assistantName+'回复',body:reply.content });}catch{}
   }
 }
 async function handleMessageInternal(text, fromBubble = false, context = null) {
@@ -513,7 +516,7 @@ async function handleMessageInternal(text, fromBubble = false, context = null) {
     const followUpTask = normalizedActions.map((action) => action?.taskId).filter(Boolean).map((id) => state.tasks.find((task) => task.id === id)).find(Boolean) || currentTask();
     if (!result.applied && result.followUpMinutes && followUpTask && !completionRequested) scheduleSupervision(followUpTask, result.followUpMinutes);
     const reply = result.reply || '已处理。';
-    addMessage('assistant', reply, result.source === 'agent' ? '已通过工具执行并校验结果' : result.source === 'local' ? '本地规则模式：配置支持工具调用的模型后可启用 Agent' : '已由模型完成结构化调度', result.sticker);
+    addMessage('assistant', reply, result.source === 'app' ? '语音功能说明' : result.source === 'agent' ? '已通过工具执行并校验结果' : result.source === 'local' ? '本地规则模式：配置支持工具调用的模型后可启用 Agent' : '已由模型完成结构化调度', result.sticker);
     if (fromBubble && !isSnoozeRequest(input) && !result.silent) await showBubbleReply({ title: result.question ? '想确认一下' : window.chatProfile.get(state.settings).assistantName+'回复', body: reply, sticker:result.sticker, taskId:result.question?.taskId || context?.taskId, questionId:result.question?.id, quickActions:(result.quickReplies || result.question?.quickReplies || []).map(message=>({label:message,message})) });
   }
   if(executionMeta){const replyMessage=[...state.messages].reverse().find(m=>m.role==='assistant'&&m.kind!=='sticker');if(replyMessage)replyMessage.execution=executionMeta;}
@@ -530,7 +533,7 @@ function scheduleSupervision(task, minutes) {
 
 let supervisionBusy = false;
 async function requestCheckIn(payload = {}) {
-  if (agentBusy || supervisionBusy || chatClearing || friendSwitching) return false;
+  if (agentBusy || supervisionBusy || chatClearing || friendSwitching || !$('#settingsModal').classList.contains('hidden')) return false;
   supervisionBusy = true;
   try {
     if(window.conversationState.reconcile(state))await save();
@@ -542,9 +545,10 @@ async function requestCheckIn(payload = {}) {
     if (agentBusy || JSON.stringify([state.tasks,state.messages,state.settings,state.agentContext]) !== before) return false;
     if(result.bubbleId&&state.messages.some(m=>m.id===result.bubbleId))return true;
     if (result.question) state.agentContext={...state.agentContext,pendingQuestion:result.question};
-    appendMessage('assistant',result.body,result.source==='local'?'本地提醒':'主动确认安排',result.sticker,{id:result.bubbleId||uid('checkin'),kind:'reminder',friendId:state.activeFriendId||'zhixu',createdAt:result.generatedAt||now(),context:{taskId:result.taskId,questionId:result.questionId}});
+    const reminderMessage=appendMessage('assistant',result.body,result.source==='local'?'本地提醒':'主动确认安排',result.sticker,{id:result.bubbleId||uid('checkin'),kind:'reminder',friendId:state.activeFriendId||'zhixu',createdAt:result.generatedAt||now(),context:{taskId:result.taskId,questionId:result.questionId}});
     await save(); renderMessages();
-    await window.humanDispatch.notify({...result,friendId:state.activeFriendId||'zhixu'}).catch(()=>{}); return true;
+    const notice={...result,messageId:reminderMessage.id,bubbleId:result.bubbleId||reminderMessage.id,friendId:state.activeFriendId||'zhixu'};const voiceQueued=Boolean(window.voiceUI?.speakNotice(notice));
+    await window.humanDispatch.notify({...notice,suppressAlertSound:voiceQueued}).catch(()=>{}); return true;
   } catch { return false; /* Retry without generating a misleading fixed nudge. */ }
   finally { supervisionBusy=false; }
 }
@@ -572,7 +576,7 @@ async function checkSupervision() {
     }
     if(state.settings.quietUntil&&new Date(state.settings.quietUntil)<=current){state.settings.quietUntil='';changed=true;}
     if(changed){await save();renderAll();}
-    for(const notice of notices)await window.humanDispatch.notify(notice).catch(()=>{});
+    for(const notice of notices){const voiceQueued=Boolean(window.voiceUI?.speakNotice(notice));await window.humanDispatch.notify({...notice,suppressAlertSound:voiceQueued}).catch(()=>{});}
   }finally{supervisionScheduleBusy=false;}
 }
 
@@ -602,7 +606,7 @@ async function checkReminders() {
       if(state.settings.notifications)notices.push(recordProactive({title:'人类调度 · 提醒',body:`现在该做：${reminder.title}`},reminder.id+'-'+scheduledAt,{reminderId:reminder.id,scheduledAt}));
     }
     if(changed){await save();renderAll();}
-    for(const notice of notices)await window.humanDispatch.notify(notice).catch(()=>{});
+    for(const notice of notices){const voiceQueued=Boolean(window.voiceUI?.speakNotice(notice));await window.humanDispatch.notify({...notice,suppressAlertSound:voiceQueued}).catch(()=>{});}
   }finally{reminderBusy=false;}
 }
 
@@ -699,10 +703,10 @@ async function openSettings() {
   $('#stickerFrequencyInput').value=['lively','balanced','quiet'].includes(s.stickerFrequency)?s.stickerFrequency:'lively';
   $('#themeInput').value = themeLabels[s.theme] ? s.theme : 'pastel-mix';
   applyTheme($('#themeInput').value);
-  $('#settingsStatus').textContent = '';
+  $('#settingsStatus').textContent = '';resetModelTest();window.voiceUI?.load(s);
   $('#settingsModal').classList.remove('hidden');
 }
-function closeSettings() { $('#settingsModal').classList.add('hidden'); }
+function closeSettings() { resetModelTest();$('#settingsModal').classList.add('hidden'); }
 
 $('#settingsButton').addEventListener('click', openSettings); $('#closeSettingsButton').addEventListener('click', closeSettings); $('#settingsModal .modal-backdrop').addEventListener('click', closeSettings);
 function hasModelConfig() {
@@ -722,9 +726,9 @@ $('#settingsForm').addEventListener('submit', async (event) => {
   event.preventDefault();
   if (activePromptTone) promptDrafts[activePromptTone] = $('#systemPromptInput').value.trim() || defaultTonePrompts[activePromptTone] || '';
   if(avatarLoads){$('#settingsStatus').textContent='头像正在处理，请稍候再保存。';return;}
-  const selectedTone = $('#toneInput').value;
+  const selectedTone = $('#toneInput').value;let speech;try{speech=window.voiceUI?.prepareSave()||window.speechConfig.normalize(state.settings.speech);}catch(error){$('#settingsStatus').textContent=error.message;return;}
   rememberProviderDraft();
-  Object.assign(state.settings, { ...window.chatProfile.get({...profileDraft,assistantName:$('#assistantNameInput').value,userName:$('#userNameInput').value}), providerId: $('#providerInput').value, providerConfigs: structuredClone(providerDrafts), baseUrl: $('#baseUrlInput').value.trim(), apiKey: $('#apiKeyInput').value.trim(), model: $('#modelInput').value.trim(), tone: selectedTone, tonePrompts: { ...defaultTonePrompts, ...promptDrafts }, reminderMinutes: Number($('#reminderInput').value) || 30, passiveNudgeMinutes: Math.max(5, Number($('#passiveNudgesInput').value) || 10), passiveNudgesEnabled: $('#passiveNudgesEnabledInput').checked, workStart: $('#workStartInput').value, workEnd: $('#workEndInput').value, notifications: $('#notificationsInput').checked, stickersEnabled:$('#stickersEnabledInput').checked, onlineStickersEnabled:$('#onlineStickersEnabledInput').checked, stickerFrequency:$('#stickerFrequencyInput').value, systemPrompt: promptDrafts[selectedTone] || defaultTonePrompts[selectedTone], theme: $('#themeInput').value, themeConfigured: true });
+  Object.assign(state.settings, { speech,...window.chatProfile.get({...profileDraft,assistantName:$('#assistantNameInput').value,userName:$('#userNameInput').value}), providerId: $('#providerInput').value, providerConfigs: structuredClone(providerDrafts), baseUrl: $('#baseUrlInput').value.trim(), apiKey: $('#apiKeyInput').value.trim(), model: $('#modelInput').value.trim(), tone: selectedTone, tonePrompts: { ...defaultTonePrompts, ...promptDrafts }, reminderMinutes: Number($('#reminderInput').value) || 30, passiveNudgeMinutes: Math.max(5, Number($('#passiveNudgesInput').value) || 10), passiveNudgesEnabled: $('#passiveNudgesEnabledInput').checked, workStart: $('#workStartInput').value, workEnd: $('#workEndInput').value, notifications: $('#notificationsInput').checked, stickersEnabled:$('#stickersEnabledInput').checked, onlineStickersEnabled:$('#onlineStickersEnabledInput').checked, stickerFrequency:$('#stickerFrequencyInput').value, systemPrompt: promptDrafts[selectedTone] || defaultTonePrompts[selectedTone], theme: $('#themeInput').value, themeConfigured: true });
   await save(); closeSettings(); renderAll(); showToast('调度设置已保存，各语气提示词已分别保存');
 });
 $('#changeDataDirectoryButton').addEventListener('click', async () => {
@@ -759,7 +763,26 @@ $('#importDataButton').addEventListener('click', async () => {
     $('#settingsStatus').textContent = `导入失败：${error.message}`;
   }
 });
-$('#testConnectionButton').addEventListener('click', async () => { $('#settingsStatus').textContent = '正在测试……'; const testSettings = { ...state.settings, baseUrl: $('#baseUrlInput').value.trim(), apiKey: $('#apiKeyInput').value.trim(), model: $('#modelInput').value.trim() }; try { const result = await window.humanDispatch.askAI({ settings: testSettings, testAgent: true, text: '仅测试工具调用：使用 list_tasks，然后用 finish 回复连接测试成功，不要修改数据。', messages: [] }); $('#settingsStatus').textContent = result.source === 'agent' ? '连接成功，模型支持 Agent 工具调用。' : result.source === 'model' ? '连接成功，模型已返回结构化结果。' : `未连接到模型：${result.warning || '将使用本地模式'}`; } catch (error) { $('#settingsStatus').textContent = `Agent 连接测试失败：${error.message}`; } });
+let modelTestController=null,modelTestEpoch=0,modelTestTimer=null,modelTestDeadline=null;
+function clearModelTestTimers(){clearInterval(modelTestTimer);clearTimeout(modelTestDeadline);modelTestTimer=modelTestDeadline=null;}
+function resetModelTest(){modelTestEpoch++;clearModelTestTimers();modelTestController?.abort();modelTestController=null;$('#testChatModelButton').disabled=false;$('#testChatModelButton').textContent='测试大模型';$('#cancelModelTestButton').hidden=true;$('#chatModelTestStatus').textContent='';delete $('#chatModelTestStatus').dataset.status;}
+$('#testChatModelButton').addEventListener('click',async()=>{
+  resetModelTest();
+  if(agentBusy||supervisionBusy||window.companionUI?.isGeneratingMoment?.()){$('#chatModelTestStatus').textContent='对话或后台请求仍在处理中，结束后再测试，避免并发占用。';return;}
+  const epoch=modelTestEpoch,controller=new AbortController(),started=performance.now();modelTestController=controller;
+  const button=$('#testChatModelButton'),status=$('#chatModelTestStatus');button.disabled=true;button.textContent='测试中…';status.textContent='正在测试大模型接口与工具调用…';status.dataset.status='testing';
+  $('#cancelModelTestButton').hidden=false;
+  modelTestTimer=setInterval(()=>{status.textContent=`正在等待服务响应 · ${Math.floor((performance.now()-started)/1000)} 秒（最多 20 秒，不自动重试）`;},1000);
+  modelTestDeadline=setTimeout(()=>{if(epoch!==modelTestEpoch)return;resetModelTest();status.textContent='测试等待超时，已取消请求；本次未自动重试，请稍后再试。';status.dataset.status='error';},25000);
+  const settings={baseUrl:$('#baseUrlInput').value.trim(),apiKey:$('#apiKeyInput').value.trim(),model:$('#modelInput').value.trim()};
+  try{const result=await window.humanDispatch.testChatModel(settings,controller.signal);if(epoch!==modelTestEpoch)return;status.textContent=result.message+`（${((result.durationMs??performance.now()-started)/1000).toFixed(1)} 秒，${result.requestCount??1} 次请求）`;status.dataset.status=result.toolCalling==='confirmed'?'success':'warning';}
+  catch(error){if(epoch!==modelTestEpoch||controller.signal.aborted)return;status.textContent=error.message;status.dataset.status='error';}
+  finally{if(epoch===modelTestEpoch){clearModelTestTimers();button.disabled=false;button.textContent='测试大模型';$('#cancelModelTestButton').hidden=true;modelTestController=null;}}
+});
+$('#cancelModelTestButton').addEventListener('click',()=>{resetModelTest();$('#chatModelTestStatus').textContent='已取消测试。';});
+for(const id of ['baseUrlInput','apiKeyInput','modelInput'])$('#'+id).addEventListener('input',resetModelTest);
+for(const id of ['providerInput','presetModelInput'])$('#'+id).addEventListener('change',resetModelTest);
+
 $('#chatForm').addEventListener('submit', (event) => { event.preventDefault(); handleMessage($('#chatInput').value); }); $('#chatInput').addEventListener('keydown', event => { const phoneNewline = matchMedia('(max-width:760px)').matches && !event.ctrlKey && !event.metaKey; if (event.key === 'Enter' && !event.shiftKey && !phoneNewline && !event.isComposing && event.keyCode !== 229) { event.preventDefault(); if (!agentBusy && $('#chatInput').value.trim()) $('#chatForm').requestSubmit(); } });
 function restoreComposerFocus(){syncComposer();$('#chatInput').readOnly=false;$('#chatInput').focus({preventScroll:true});requestAnimationFrame(()=>{if($('#clearChatModal').classList.contains('hidden'))$('#chatInput').focus({preventScroll:true});});}
 function openClearChatDialog(){
@@ -769,7 +792,7 @@ function openClearChatDialog(){
 function closeClearChatDialog(){if(chatClearing)return;$('#clearChatModal').classList.add('hidden');$('.app-shell').inert=false;restoreComposerFocus();}
 for(const id of ['cancelClearChatButton','closeClearChatButton','clearChatBackdrop'])$('#'+id).addEventListener('click',closeClearChatDialog);
 $('#confirmClearChatButton').addEventListener('click',async()=>{
- if(chatClearing)return;chatClearing=true;syncComposer();$('#confirmClearChatButton').disabled=true;$('#cancelClearChatButton').disabled=true;
+ if(chatClearing)return;window.voiceUI?.stop();chatClearing=true;syncComposer();$('#confirmClearChatButton').disabled=true;$('#cancelClearChatButton').disabled=true;
  const before={messages:state.messages,agentContext:structuredClone(state.agentContext),pendingConfirmation:state.pendingConfirmation};
  try{state.messages=[];if(state.agentContext)state.agentContext.pendingQuestion=null;state.pendingConfirmation=null;await save();bubbleReplyQueue.length=0;await window.humanDispatch.clearBubbles().catch(()=>{});chatSearchQuery='';$('#chatSearchInput').value='';renderAll();showToast('聊天记录已清空');}
  catch(error){Object.assign(state,before);try{Object.assign(state,await window.humanDispatch.loadState());}catch{}renderAll();showToast('清空未完成：'+error.message);}

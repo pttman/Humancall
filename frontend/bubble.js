@@ -61,7 +61,7 @@ function renderCurrent(playSound = false, direction = 0) {
   renderQuickActions(payload.quickActions);
   $('#bubbleInput').value = '';
   $('#bubbleInput').focus();
-  if (playSound) playAlertSound();
+  if(payload.suppressAlertSound){$('#alertSound').pause();$('#alertSound').currentTime=0;}else if (playSound) playAlertSound();
   requestAnimationFrame(() => resizeToContent());
 }
 

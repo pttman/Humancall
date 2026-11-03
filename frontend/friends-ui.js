@@ -21,7 +21,7 @@
     if((state.activeFriendId||'zhixu')===id){window.companionUI?.showChat();return true;}
     const previous=structuredClone(state);friendSwitching=true;syncComposer();
     try{
-      window.friends.select(state,id);window.conversationState.reconcile(state);chatSearchQuery='';$('#chatSearchInput').value='';$('#chatInput').value='';
+      window.voiceUI?.stop();window.friends.select(state,id);window.conversationState.reconcile(state);chatSearchQuery='';$('#chatSearchInput').value='';$('#chatInput').value='';
       if(!state.messages.length){const name=window.chatProfile.get(state.settings).assistantName;appendMessage('assistant',id==='luye'?'我叫'+name+'。想聊什么都行，今天的离谱事也归我收。':'我是'+name+'，今天有什么想聊的，或需要我帮你安排的事？');}
       await save();bubbleReplyQueue.length=0;await window.humanDispatch.clearBubbles().catch(()=>{});window.companionUI?.showChat();renderAll();return true;
     }catch(error){Object.assign(state,previous);try{Object.assign(state,await window.humanDispatch.loadState());}catch{}renderAll();showToast('切换未完成：'+error.message);return false;}

@@ -3,8 +3,8 @@
   const listeners = { show: [], clear: [], submit: [], prune: [], identity: [] };
   const channel = !desktop && typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('human-dispatch-bubble') : null;
   channel?.addEventListener('message', ({ data }) => listeners[data.type]?.forEach(fn => fn(data.payload)));
-  async function request(route, method = 'GET', value) {
-    const response = await fetch('/api/' + route, { method, headers: value === undefined ? {} : { 'Content-Type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) });
+  async function request(route, method = 'GET', value,signal) {
+    const response = await fetch('/api/' + route, { method,signal, headers: value === undefined ? {} : { 'Content-Type': 'application/json' }, body: value === undefined ? undefined : JSON.stringify(value) });
     const data = await response.json(); if (!response.ok) throw new Error(data.error || '服务请求失败'); return data;
   }
   const emit = (type, payload) => { listeners[type].forEach(fn => fn(payload)); channel?.postMessage({ type, payload }); return true; };
@@ -17,6 +17,7 @@
     getDefaultPrompt: async () => (await request('settings/prompts')).defaultPrompt,
     getTonePrompts: async () => (await request('settings/prompts')).tonePrompts,
     searchOnlineStickers: query=>request('stickers/search','POST',{query}),
+    testChatModel:(settings,signal)=>request('models/test','POST',{settings},signal),
     checkIn: payload => request('ai/check-in', 'POST', payload),
     considerMoment: () => request('ai/moments','POST',{}),
     onSupervisionRequest: desktop?.onSupervisionRequest || (()=>{}),
@@ -24,6 +25,12 @@
     onIdentityUpdate: desktop?.onIdentityUpdate || (fn=>listeners.identity.push(fn)),
     clearBubbles: desktop?.clearBubbles || (async()=>emit('clear')),
     notifyReply: desktop?.notifyReply || (async payload=>{if(!document.hidden)return false;return window.humanDispatch.notify(payload);}),
+    synthesizeSpeech: async (payload,signal)=>{
+      const {preview,...input}=payload;
+      const response=await fetch('/api/speech/'+(preview?'preview':'synthesize'),{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(input),signal});
+      if(!response.ok){const error=await response.json();throw Error(error.error||'语音暂时不可用');}
+      return response.blob();
+    },
     askAI: payload => request('ai/chat', 'POST', payload),
     exportData: async () => { const state = await request('backup'); const url = URL.createObjectURL(new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = '人类调度-备份.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); return { canceled: false, filePath: a.download }; },
     importData: () => new Promise((resolve, reject) => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.json'; input.oncancel = () => resolve({ canceled: true }); input.onchange = async () => { try { if (!input.files.length) return resolve({ canceled: true }); resolve(await request('backup', 'POST', JSON.parse(await input.files[0].text()))); } catch (error) { reject(error); } }; input.click(); }),

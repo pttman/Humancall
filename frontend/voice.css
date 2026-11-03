@@ -1,0 +1,23 @@
+.speech-settings{padding:20px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--panel-2) 40%,var(--panel));display:grid;gap:14px}
+.speech-heading{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}.speech-heading .settings-section-copy{margin:7px 0 0}.speech-provider{white-space:nowrap;color:var(--green);background:var(--panel-2);border:1px solid var(--line);font-size:10px;padding:5px 9px;border-radius:20px}
+.speech-key-row{display:flex;gap:8px;align-items:center}.speech-key-row input{min-width:0;flex:1}.speech-key-row button{flex-shrink:0}.speech-voice-field{min-width:0;display:grid;align-content:start;gap:9px}.speech-custom{min-width:0;width:100%}.speech-preview{justify-self:start;font-size:12px;padding:7px 18px;border-radius:8px}.speech-advanced{display:grid;gap:11px}.speech-advanced summary{font-size:12px;color:var(--muted);cursor:pointer}.speech-advanced[open] summary{margin-bottom:12px}.speech-settings input[type=range]{padding:0;accent-color:var(--green);height:24px}.speech-settings output{font-size:11px;color:var(--muted)}
+.speech-playback{display:flex;align-items:center;gap:10px;margin:0 24px 8px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:var(--panel-2);font-size:12px;color:var(--muted)}.speech-playback[hidden],.speech-custom[hidden]{display:none}.speech-playback #speechPlaybackStatus{flex:1;min-width:0;overflow-wrap:anywhere}.speech-pulse{color:var(--green);font-weight:600}.speech-playback button{flex-shrink:0}
+@media(max-width:760px){.speech-settings{padding:15px}.speech-playback{margin-inline:12px}}
+
+.speech-test-row{display:flex;gap:12px;align-items:center;justify-content:space-between}.speech-test-row .form-status{min-width:0;flex:1}.speech-test-row button{flex-shrink:0;padding:7px 12px;font-size:12px}#speechStopPreview[hidden]{display:none}
+.speech-playback{flex-shrink:0}
+
+.message.assistant .sender-name{display:flex;align-items:center;gap:7px}
+.sender-name .speak-message{display:inline-flex;align-items:center;justify-content:center;width:23px;height:23px;min-width:0;min-height:0;padding:3px;margin:-3px 0;border:0;border-radius:6px;background:transparent;color:var(--muted);flex-shrink:0;cursor:pointer}
+.sender-name .speak-message:hover,.sender-name .speak-message:focus-visible{background:var(--panel-2);color:var(--green)}
+.sender-name .speak-message:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+.sender-name .speak-message svg{width:16px;height:16px;display:block}
+.sender-name .speak-message .speech-stop-icon{display:none}
+.sender-name .speak-message[aria-pressed=true] .speech-speak-icon{display:none}
+.sender-name .speak-message[aria-pressed=true] .speech-stop-icon{display:block;color:var(--green)}
+.model-test-actions,.speech-test-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:12px}
+.model-test-actions button,.speech-test-actions button{padding:8px 13px;border-radius:8px;font-size:12px;flex-shrink:0}
+.model-test-actions .form-status{flex:1;min-width:150px;margin:0}
+#chatModelTestStatus[data-status=success]{color:var(--green)}
+#chatModelTestStatus[data-status=warning]{color:var(--muted)}
+#cancelModelTestButton[hidden]{display:none}

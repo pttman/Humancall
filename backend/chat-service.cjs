@@ -2,13 +2,15 @@ const core = require('./core.cjs');
 const { runAgent, fingerprint } = require('./agent.cjs');
 
 // Shared by the HTTP desktop server and the on-device Android runtime.
-async function chat(payload, { readState = core.readState, saveState = core.writeState, agent = runAgent } = {}) {
+async function chat(payload, { readState = core.readState, saveState = core.writeState, agent = runAgent, wait=ms=>new Promise(resolve=>setTimeout(resolve,ms)),random=Math.random } = {}) {
   const state = readState();
   const settings = { ...state.settings, ...(payload.settings || {}) };
   settings.apiKey = settings.apiKey || process.env.MODEL_API_KEY || '';
   if (process.env.MODEL_BASE_URL && !payload.settings) settings.baseUrl = process.env.MODEL_BASE_URL;
   if (process.env.MODEL_NAME && !payload.settings) settings.model = process.env.MODEL_NAME;
   if (typeof payload.text !== 'string' || payload.text.length > 12000 || (payload.messages !== undefined && !Array.isArray(payload.messages))) throw Object.assign(Error('消息格式不正确或过长'), { status: 400 });
+  const speechConfig=require('../frontend/speech-config.js');
+  if(payload.testAgent!==true&&speechConfig.isSpeechQuestion(payload.text))return {reply:speechConfig.abilityReply(settings),actions:[],source:'app',applied:true,state};
   if (settings.apiKey && (!payload.settings || payload.testAgent === true)) {
     const before = fingerprint(state);
     let attempts = 0;
@@ -21,8 +23,16 @@ async function chat(payload, { readState = core.readState, saveState = core.writ
           result = await agent({ settings: structuredClone(settings), text: payload.text, messages: structuredClone(payload.messages || state.messages), state: structuredClone(state), context: structuredClone(payload.context), mode: payload.testAgent === true ? 'connection_test' : 'chat' });
           break;
         } catch (error) {
-          if (error.status === 409 || fingerprint(readState()) !== before) throw Object.assign(Error('执行期间任务或设置已更改，本轮未提交，请重新发送'), { status: 409 });
-          if (attempts === 3) throw error;
+          if ((error.status === 409&&!error.upstreamStatus) || fingerprint(readState()) !== before) throw Object.assign(Error('执行期间任务或设置已更改，本轮未提交，请重新发送'), { status: 409 });
+          if (attempts === 3 || error.retryable===false) throw error;
+          // Never hammer an overloaded service with three immediate attempts.
+          // Honor Retry-After; a long provider cooldown ends this round instead
+          // of retrying early or leaving the conversation blocked for minutes.
+          if(error.upstreamStatus){
+            const delay=Math.max(2000*2**(attempts-1)+Math.floor(random()*500),error.retryAfterMs||0);
+            if(delay>30000)throw error;
+            await wait(delay);
+          }
         }
       }
       if (result.agent) result.agent = { ...result.agent, attempts, trace: [...Array.from({ length: attempts - 1 }, (_, index) => ({ tool: 'retry', status: 'ok', summary: `第 ${index + 1} 次执行未完成，已从原始状态重新尝试` })), ...(result.agent.trace || [])] };
@@ -43,12 +53,13 @@ async function chat(payload, { readState = core.readState, saveState = core.writ
       if (!response.applied) { response.state = latest; response.applied = true; }
       return response;
     } catch (error) {
-      if (error.status === 409) throw error;
-      throw Object.assign(Error(error.message + (attempts === 3 ? '（已自动重试 2 次）' : '') + '；本轮未保存任何修改。请根据上述错误检查 API 配置，或稍后重试。'), { status: 502 });
+      if (error.status === 409&&!error.upstreamStatus) throw error;
+      const guidance=error.upstreamStatus===429?'服务商正在限流，请稍后重试。':error.upstreamStatus>=500?'服务商暂时繁忙或不可用，请稍后重试，或临时切换服务商。':'请根据上述错误检查 API 配置，或稍后重试。';
+      throw Object.assign(Error(error.message + (attempts > 1 ? `（已自动重试 ${attempts-1} 次）` : '') + '；本轮未保存任何修改。'+guidance), { status: 502,upstreamStatus:error.upstreamStatus });
     }
   }
   try { return { ...await core.callModel({ settings, messages: payload.messages || [], tasks: state.tasks, reminders: state.reminders }), source: 'model' }; }
-  catch (error) { return { ...core.localFallback(payload.text, state.tasks), source: 'local', warning: error.message }; }
+  catch (error) { return { ...core.localFallback(payload.text, state.tasks, settings), source: 'local', warning: error.message }; }
 }
 
 module.exports = { chat };

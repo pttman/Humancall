@@ -1,3 +1,5 @@
+const {networkFetch}=require('./model-client.cjs');
+const speechConfig=require('../frontend/speech-config.js');
 const temporal=require('./temporal-context.cjs');
 const chatProfile=require('../frontend/chat-profile.js');
 const companion=require('../frontend/companion.js');
@@ -33,6 +35,7 @@ const defaultState = {
   settings: {
     ...chatProfile.defaults,
     ...companion.defaults,
+    speech: speechConfig.normalize(),
     provider: 'OpenAI Compatible',
     providerId: 'deepseek',
     baseUrl: 'https://api.deepseek.com',
@@ -77,7 +80,7 @@ function readState() {
       parsed.settings.themeConfigured = true;
     }
     const settings = { ...defaultState.settings, ...(parsed.settings || {}) };
-    settings.providerId=modelPresets.infer(settings);chatProfile.normalize(settings);
+    settings.providerId=modelPresets.infer(settings);settings.speech=speechConfig.normalize(settings.speech);chatProfile.normalize(settings);
     if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(settings.theme)) settings.theme = 'pastel-mix';
     const savedTonePrompts = parsed.settings?.tonePrompts || {};
     if (!parsed.settings?.tonePrompts && parsed.settings?.systemPrompt && !String(parsed.settings.systemPrompt).includes(LEGACY_DEFAULT_PROMPT_MARKER)) savedTonePrompts[settings.tone] = parsed.settings.systemPrompt;
@@ -90,6 +93,7 @@ function readState() {
 }
 
 function writeState(state) {
+  state.settings.speech=speechConfig.normalize(state.settings.speech);
   chatProfile.normalize(state.settings);
   companion.normalize(state);
   recordBook.normalize(state);
@@ -112,6 +116,7 @@ function normalizeImportedState(parsed, currentState) {
   const providerId=modelPresets.infer(imported.settings);
   const matching=profiles[providerId];
   imported.settings.apiKey=matching&&modelPresets.normalized(matching.baseUrl)===modelPresets.normalized(imported.settings.baseUrl)?matching.apiKey||'':'';
+  imported.settings.speech=speechConfig.imported(imported.settings.speech,current.speech);
   imported.settings.providerId=providerId;imported.settings.providerConfigs=profiles;
   if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(imported.settings.theme)) imported.settings.theme = 'pastel-mix';
   imported.settings.tonePrompts = { ...TONE_PROMPTS, ...(parsed.settings?.tonePrompts || {}) };
@@ -151,14 +156,14 @@ async function callModel({ settings, messages, tasks, reminders }) {
     id: reminder.id, title: reminder.title, nextAt: reminder.nextAt, repeat: reminder.repeat, enabled: reminder.enabled
   }));
   const selectedPrompt = settings.tonePrompts?.[settings.tone] || settings.systemPrompt || TONE_PROMPTS[settings.tone] || DEFAULT_SYSTEM_PROMPT;
-  const system = `${selectedPrompt}\n${companion.prompt(settings)}\n当前监督语气档位：${settings.tone}。${TONE_GUIDANCE[settings.tone] || ''}\n` +
+  const system = `${selectedPrompt}\n${companion.prompt(settings)}\n${speechConfig.capabilityPrompt(settings)}\n当前监督语气档位：${settings.tone}。${TONE_GUIDANCE[settings.tone] || ''}\n` +
     '你要把用户的自然语言变成可执行的工作管理动作。提醒和任务是两种不同对象：提醒用于某个时间点通知用户，任务用于持续督办。多个交付结果请使用总任务和子任务：先创建总任务，再让子任务用 parentTitle 指向总任务标题；总任务可设置 isContainer=true。\n' +
     '只返回严格 JSON，不要 Markdown。格式：' +
     '{"reply":"给用户的中文回复","actions":[{"type":"create_task|update_task|complete_task|block_task|postpone_task|snooze_task|delete_task|create_project|create_reminder|update_reminder|delete_reminder|clear_all_tasks|none","taskId":"可选","reminderId":"可选","title":"可选","description":"可选","parentId":"可选","parentTitle":"可选","isContainer":false,"dueAt":"ISO时间或空","nextAt":"ISO时间或空","repeat":"none|daily|weekly","weekday":0,"estimatedMinutes":30,"priority":"low|normal|high|urgent","status":"可选","projectName":"可选","enabled":true}],"followUpMinutes":数字或null}\n' +
     '完成任务时优先用 complete_task；用户说遇到问题用 block_task；用户说“推到明天做”“明天再做”或要求延期时，必须对现有任务使用 snooze_task 并提供 dueAt 和 followUpMinutes，不能创建新任务，客户端会在此期间静默。用户要求删除单个任务时返回 delete_task，并提供 taskId 或精确 title；客户端必须二次确认后才执行。用户明确要求清空全部任务时可以返回 clear_all_tasks，但客户端必须二次确认后才执行。不要臆造用户已经完成或要求删除。\n' +
     '创建提醒时必须提供 nextAt（ISO 时间）；一次性提醒 repeat 为 none，每天重复为 daily，每周重复为 weekly，并提供 weekday（周日为 0）。\n' +
     `当前任务：${JSON.stringify(taskContext)}\n当前提醒：${JSON.stringify(reminderContext)}`;
-  const response = await fetch(endpoint, {
+  const response = await networkFetch(endpoint, {
     signal: AbortSignal.timeout(30000),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.apiKey}` },
@@ -225,9 +230,10 @@ function parseReminderRequest(input) {
   return { title, nextAt: nextAt.toISOString(), repeat, ...(weekday === undefined ? {} : { weekday }) };
 }
 
-function localFallback(text, tasks) {
+function localFallback(text, tasks, settings={}) {
   const input = String(text || '').trim();
   const lower = input.toLowerCase();
+  if(speechConfig.isSpeechQuestion(input))return {reply:speechConfig.abilityReply(settings),actions:[]};
   const active = tasks.find((task) => task.status === 'active' && !task.isContainer);
   const reminder = parseReminderRequest(input);
   if (reminder) {

@@ -3,6 +3,9 @@ const chatProfile=require('../frontend/chat-profile.js');
 const conversationState=require('../frontend/conversation-state.js');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, screen, dialog, shell } = require('electron');
 const path = require('path');
+const voiceDevelopment=app.commandLine.hasSwitch('voice-dev');
+const voiceDevelopmentLock=!voiceDevelopment||app.requestSingleInstanceLock();
+const windowTitle=()=> '人类调度 '+app.getVersion()+(voiceDevelopment?' · 语音开发版':'');
 const { configureDataDirectory, readState } = require('../backend/core.cjs');
 const { createServer } = require('../backend/server.cjs');
 const { createStorageController } = require('../backend/storage.cjs');
@@ -50,7 +53,7 @@ function createWindow() {
     minWidth: 920,
     minHeight: 640,
     backgroundColor: '#10151c',
-    title: '人类调度 ' + app.getVersion(),
+    title: windowTitle(),
     icon: appIconPath,
     webPreferences: {
       backgroundThrottling: false,
@@ -61,7 +64,9 @@ function createWindow() {
   });
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setAutoHideMenuBar(true);
-  mainWindow.on('page-title-updated', (event) => { event.preventDefault(); mainWindow.setTitle('人类调度 ' + app.getVersion()); });
+  mainWindow.on('page-title-updated', (event) => { event.preventDefault(); mainWindow.setTitle(windowTitle()); });
+  if(voiceDevelopment)mainWindow.once('ready-to-show',()=>{mainWindow.show();mainWindow.focus();});
+  if(voiceDevelopment)mainWindow.webContents.once('did-finish-load',()=>mainWindow.webContents.executeJavaScript(`(async()=>{for(let i=0;i<100;i++){if(window.voiceUI&&state.settings.workStart){await openSettings();closeConfigReminder();document.querySelector('#speechSettings').scrollIntoView({block:'center'});document.querySelector('#speechApiKeyInput').focus({preventScroll:true});return;}await new Promise(resolve=>setTimeout(resolve,50));}})()`).catch(()=>{}));
   mainWindow.loadURL(frontendUrl + '/index.html');
   mainWindow.on('close', (event) => {
     if (!app.isQuitting) {
@@ -170,11 +175,14 @@ function startPassiveSupervisor() {
 
 if (process.platform === 'win32') app.setAppUserModelId('com.human-dispatch.desktop');
 
+if(voiceDevelopment)app.on('second-instance',()=>{if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
+
 app.on('activate', () => {
   if (mainWindow && !mainWindow.isDestroyed()) { mainWindow.show(); mainWindow.focus(); }
 });
 
 app.whenReady().then(async () => {
+  if(!voiceDevelopmentLock){app.quit();return;}
   try {
     prepareDataDirectory();
   } catch (error) {

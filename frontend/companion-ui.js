@@ -104,5 +104,5 @@
     finally{momentBusy=false;}
   }
   function schedule(){clearTimeout(momentTimer);momentTimer=setTimeout(considerMoment,95000);}
-  window.companionUI={render,schedule,showChat,openProfile,closeProfile,closeSelf,isSaving:()=>profileSaving||selfSaving};render();schedule();setInterval(considerMoment,60000);
+  window.companionUI={render,schedule,isGeneratingMoment:()=>momentBusy,showChat,openProfile,closeProfile,closeSelf,isSaving:()=>profileSaving||selfSaving};render();schedule();setInterval(considerMoment,60000);
 })();

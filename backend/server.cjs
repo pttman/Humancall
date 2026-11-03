@@ -23,7 +23,7 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 8 * 1024 * 1024) throw Object.assign(new Error('请求超过 8 MB'), { status: 413 }); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
-function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
+function createServer({ serveFrontend = true, storage, onStateSaved, speechSynthesize=require('./speech.cjs').synthesize } = {}) {
   const saveState=value=>{const saved=core.writeState(value);onStateSaved?.(saved);return saved;};
   const checkIn = createSupervisor({readState:core.readState});
   const considerMoment = createMoments({readState:core.readState});
@@ -40,6 +40,29 @@ function createServer({ serveFrontend = true, storage, onStateSaved } = {}) {
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       const url = new URL(req.url, 'http://localhost');
       const route = `${req.method} ${url.pathname}`;
+      if(route==='POST /api/models/test'){
+        const payload=await body(req),controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);
+        try{const result=await require('./model-test.cjs').testModel(payload.settings,{signal:controller.signal});if(!res.destroyed)send(200,result);}finally{res.removeListener('close',cancel);}return;
+      }
+      if(route==='POST /api/speech/synthesize'||route==='POST /api/speech/preview'){
+        const payload=await body(req),state=core.readState(),speechConfig=require('../frontend/speech-config.js'),preview=route.endsWith('/preview');
+        const friendId=payload.friendId==='luye'?'luye':'zhixu';
+        const settings=speechConfig.normalize(preview?(payload.settings||state.settings.speech):state.settings.speech);
+        let text;
+        if(preview){text='你好，这是我的声音。待办已经记下，我们一件件来。';}
+        else{
+          if(!settings.enabled)return send(400,{error:'请先在设置中开启语音输出'});
+          const messages=friendId===state.activeFriendId?state.messages:state.friends?.[friendId]?.messages||[];
+          const message=messages.find(m=>m.id===payload.messageId&&m.role==='assistant'&&!['sticker','moment'].includes(m.kind));
+          if(!message)return send(404,{error:'找不到要朗读的回复'});
+          const parts=speechConfig.segments(message.content),index=payload.partIndex??0;
+          if(!Number.isInteger(index)||index<0||index>=parts.length)return send(400,{error:'没有可朗读的文字或语音分段无效'});
+          text=parts[index];
+        }
+        const controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);
+        try{const result=await speechSynthesize({settings,text,friendId,signal:controller.signal});if(!res.destroyed){res.writeHead(200,{'Content-Type':result.contentType,'Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(result.audio);}}finally{res.removeListener('close',cancel);}
+        return;
+      }
       if (route === 'POST /api/ai/moments') { await body(req); return send(200,await considerMoment()); }
       if (route === 'POST /api/ai/check-in') { const payload=await body(req); return send(200, await checkIn({taskId:payload.taskId,reason:payload.reason,force:payload.force === true})); }
       if (route === 'POST /api/stickers/search') {

@@ -1,10 +1,13 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.23",
+  "version": "0.1.24",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
+    "dev:voice": "node tools/launch-voice-dev.cjs",
+    "test:speech-ui": "node tools/run-speech-ui-test.cjs",
+    "test:model-settings": "node tools/run-model-settings-test.cjs",
     "check": "node tools/check.cjs",
     "pack:offline": "node tools/package-portable.cjs",
     "pack": "npm run check && electron-builder --dir",
