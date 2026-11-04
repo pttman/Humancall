@@ -4,8 +4,9 @@ const conversationState=require('../frontend/conversation-state.js');
 const { app, BrowserWindow, Tray, Menu, ipcMain, nativeImage, Notification, screen, dialog, shell } = require('electron');
 const path = require('path');
 const voiceDevelopment=app.commandLine.hasSwitch('voice-dev');
-const voiceDevelopmentLock=!voiceDevelopment||app.requestSingleInstanceLock();
-const windowTitle=()=> '人类调度 '+app.getVersion()+(voiceDevelopment?' · 语音开发版':'');
+const calendarDevelopment=app.commandLine.hasSwitch('calendar-dev');
+const developmentLock=!(voiceDevelopment||calendarDevelopment)||app.requestSingleInstanceLock();
+const windowTitle=()=> '人类调度 '+app.getVersion()+(calendarDevelopment?' · 日历开发版（独立数据）':voiceDevelopment?' · 语音开发版':'');
 const { configureDataDirectory, readState } = require('../backend/core.cjs');
 const { createServer } = require('../backend/server.cjs');
 const { createStorageController } = require('../backend/storage.cjs');
@@ -52,6 +53,9 @@ function createWindow() {
     height: 820,
     minWidth: 920,
     minHeight: 640,
+    frame:process.platform!=='win32',
+    titleBarStyle:process.platform==='darwin'?'hiddenInset':'default',
+    ...(process.platform==='darwin'?{trafficLightPosition:{x:14,y:16}}:{}),
     backgroundColor: '#10151c',
     title: windowTitle(),
     icon: appIconPath,
@@ -64,8 +68,11 @@ function createWindow() {
   });
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setAutoHideMenuBar(true);
+  if(process.platform==='win32')mainWindow.setMenu(null);
+  for(const event of ['maximize','unmaximize'])mainWindow.on(event,()=>mainWindow.webContents.send('window:state',{maximized:mainWindow.isMaximized()}));
   mainWindow.on('page-title-updated', (event) => { event.preventDefault(); mainWindow.setTitle(windowTitle()); });
-  if(voiceDevelopment)mainWindow.once('ready-to-show',()=>{mainWindow.show();mainWindow.focus();});
+  if(voiceDevelopment||calendarDevelopment)mainWindow.once('ready-to-show',()=>{mainWindow.show();mainWindow.focus();});
+  if(calendarDevelopment)mainWindow.webContents.once('did-finish-load',()=>mainWindow.webContents.executeJavaScript(`(async()=>{for(let i=0;i<100;i++){if(window.calendarUI&&state.settings.workStart){closeConfigReminder();window.calendarUI.show();document.querySelector('.calendar-heading p').textContent='本地体验 · 独立数据副本，编辑不影响正式数据';return;}await new Promise(resolve=>setTimeout(resolve,50));}})()`).catch(()=>{}));
   if(voiceDevelopment)mainWindow.webContents.once('did-finish-load',()=>mainWindow.webContents.executeJavaScript(`(async()=>{for(let i=0;i<100;i++){if(window.voiceUI&&state.settings.workStart){await openSettings();closeConfigReminder();document.querySelector('#speechSettings').scrollIntoView({block:'center'});document.querySelector('#speechApiKeyInput').focus({preventScroll:true});return;}await new Promise(resolve=>setTimeout(resolve,50));}})()`).catch(()=>{}));
   mainWindow.loadURL(frontendUrl + '/index.html');
   mainWindow.on('close', (event) => {
@@ -182,7 +189,7 @@ app.on('activate', () => {
 });
 
 app.whenReady().then(async () => {
-  if(!voiceDevelopmentLock){app.quit();return;}
+  if(!developmentLock){app.quit();return;}
   try {
     prepareDataDirectory();
   } catch (error) {
@@ -198,6 +205,14 @@ app.whenReady().then(async () => {
   configureDataDirectory(dataDirectory());
   const storage = createStorageController({ initialDirectory: dataDirectory(), configPath: path.join(app.getPath('userData'), 'data-directory.txt'), encoding: 'utf16le' });
   apiServer = createServer({ storage, onStateSaved:pruneBubbles });
+  ipcMain.handle('window:control',(event,action)=>{
+    if(!mainWindow||mainWindow.isDestroyed()||event.sender!==mainWindow.webContents)return false;
+    if(action==='minimize')mainWindow.minimize();
+    else if(action==='toggle-maximize'){if(mainWindow.isMaximized())mainWindow.unmaximize();else mainWindow.maximize();}
+    else if(action==='close')mainWindow.close();
+    else if(action!=='state')return false;
+    return {maximized:mainWindow.isMaximized()};
+  });
   ipcMain.handle('storage:choose', async () => {
     const result = await dialog.showOpenDialog(mainWindow, { title: '选择数据保存位置', defaultPath: storage.get().directory, properties: ['openDirectory', 'createDirectory'] });
     return result.canceled ? null : result.filePaths[0];

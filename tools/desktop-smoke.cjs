@@ -80,6 +80,7 @@ async function main() {
       input.value = ''; input.dispatchEvent(new Event('input', { bubbles: true }));
       await openSettings();
       check(document.querySelector('#settingsForm .settings-scroll'), 'Settings layout');
+      check(!document.querySelector('#reminderInput') && document.querySelector('#passiveNudgesInput').value === '30', 'One nudge interval with 30 minute default');
       check(window.voiceUI && window.speechAudio && window.speechConfig, 'Bundled speech modules');
       check(window.speechAudio.LEAD_MS === 1000 && window.speechAudio.PART_LEAD_MS === 1000, 'Speech startup buffer');
       check(!state.settings.speech.enabled, 'Speech must default to disabled');
@@ -95,6 +96,11 @@ async function main() {
       document.querySelector('#peopleCardsToggle').click();
       check(document.querySelectorAll('.settings-person-card').length === 2, 'Two friend cards');
       closeSettings();
+      check(window.calendarUI && window.calendarData, 'Bundled calendar modules');
+      document.querySelector('#calendarNavButton').click();check(window.calendarUI.visible,'Calendar navigation');
+      window.calendarUI.openDay(window.calendarUI.selectedDay);window.companionUI.showChat();
+      check(document.body.dataset.desktopPlatform === window.desktopDispatch.platform, 'Integrated desktop window chrome');
+      if(window.desktopDispatch.platform === 'win32')check(document.querySelectorAll('.window-controls button').length === 3, 'Windows custom window controls');
       return { backend: true, friends: true, composer: true, settings: true, speechSettings: true, independentModelTests: true };
     }.toString() + ')()');
     console.log('Local API and UI passed: ' + JSON.stringify(result));

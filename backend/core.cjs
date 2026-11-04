@@ -1,3 +1,4 @@
+const nudgeSettings=require('../frontend/nudge-settings.js');
 const {networkFetch}=require('./model-client.cjs');
 const speechConfig=require('../frontend/speech-config.js');
 const temporal=require('./temporal-context.cjs');
@@ -48,9 +49,9 @@ const defaultState = {
     stickersEnabled: true,
     onlineStickersEnabled: true,
     stickerFrequency: 'lively',
-    reminderMinutes: 30,
     passiveNudgesEnabled: true,
-    passiveNudgeMinutes: 10,
+    passiveNudgeMinutes: 30,
+    nudgeSettingsVersion: 1,
     quietUntil: '',
     systemPrompt: TONE_PROMPTS['老板模式'],
     tonePrompts: TONE_PROMPTS,
@@ -82,6 +83,7 @@ function readState() {
     const settings = { ...defaultState.settings, ...(parsed.settings || {}) };
     settings.providerId=modelPresets.infer(settings);settings.speech=speechConfig.normalize(settings.speech);chatProfile.normalize(settings);
     if (!['pastel-mix', 'midnight-blue', 'paper-focus'].includes(settings.theme)) settings.theme = 'pastel-mix';
+    Object.assign(settings,nudgeSettings.normalize(parsed.settings||{}));delete settings.reminderMinutes;
     const savedTonePrompts = parsed.settings?.tonePrompts || {};
     if (!parsed.settings?.tonePrompts && parsed.settings?.systemPrompt && !String(parsed.settings.systemPrompt).includes(LEGACY_DEFAULT_PROMPT_MARKER)) savedTonePrompts[settings.tone] = parsed.settings.systemPrompt;
     settings.tonePrompts = { ...TONE_PROMPTS, ...savedTonePrompts };
@@ -93,6 +95,7 @@ function readState() {
 }
 
 function writeState(state) {
+  Object.assign(state.settings,nudgeSettings.normalize(state.settings));delete state.settings.reminderMinutes;
   state.settings.speech=speechConfig.normalize(state.settings.speech);
   chatProfile.normalize(state.settings);
   companion.normalize(state);

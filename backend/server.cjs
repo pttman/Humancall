@@ -28,7 +28,7 @@ function createServer({ serveFrontend = true, storage, onStateSaved, speechSynth
   const checkIn = createSupervisor({readState:core.readState});
   const considerMoment = createMoments({readState:core.readState});
   return http.createServer(async (req, res) => {
-    const send = (status, value) => { res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
+    const send = (status, value) => { if(res.destroyed||res.writableEnded)return;res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
       const origin = req.headers.origin;
       const allowed = process.env.FRONTEND_ORIGIN || 'http://127.0.0.1:5173';
@@ -78,11 +78,14 @@ function createServer({ serveFrontend = true, storage, onStateSaved, speechSynth
         try { return send(200, storage.set(value.directory)); } catch (error) { return send(400, { error: error.message }); }
       }
       if (route === 'GET /api/state') return send(200, core.readState());
-      if (route === 'PUT /api/state') { const value = validateState(await body(req)); return send(200, saveState(value)); }
+      if (route === 'PUT /api/state') { let value = validateState(await body(req));const base=value._clientBase;delete value._clientBase;if(base&&typeof base==='object'&&['tasks','reminders','projects','supervisionEvents'].every(key=>Array.isArray(base[key])&&base[key].every(item=>item&&typeof item==='object'&&typeof item.id==='string')))value=require('../frontend/state-merge.js').shared(base,value,core.readState());return send(200, saveState(value)); }
       if (route === 'GET /api/settings/prompts') return send(200, { defaultPrompt: core.DEFAULT_SYSTEM_PROMPT, tonePrompts: core.TONE_PROMPTS });
       if (route === 'GET /api/backup') { const snapshot = core.readState(); snapshot.settings = require('../frontend/model-presets.js').redact(snapshot.settings); return send(200, snapshot); }
       if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); saveState(state); return send(200, { canceled: false, state }); }
-      if (route === 'POST /api/ai/chat') return send(200, await chat(await body(req), { saveState }));
+      if (route === 'POST /api/ai/chat') {
+        const payload=await body(req),controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);
+        try{return send(200,await chat(payload,{saveState,signal:controller.signal}));}finally{res.removeListener('close',cancel);}
+      }
       if(req.method==='GET'&&/^\/api\/moment-media\/[a-f0-9]{64}\.(jpg|png|webp)$/.test(url.pathname)){
         const name=url.pathname.split('/').at(-1);const data=await fs.promises.readFile(path.join(core.momentMediaDirectory(),name)).catch(()=>null);
         if(data){res.writeHead(200,{'Content-Type':name.endsWith('.jpg')?'image/jpeg':name.endsWith('.png')?'image/png':'image/webp','Cache-Control':'private, max-age=86400','X-Content-Type-Options':'nosniff'});return res.end(data);}

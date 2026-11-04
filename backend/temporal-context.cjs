@@ -20,6 +20,6 @@ function history(messages,text,now=new Date()) {
 }
 function schedule(state,now=new Date()) {
   const today=dateKey(now);
-  return (state.tasks||[]).filter(t=>!['completed','cancelled'].includes(t.status)&&!t.isContainer).slice(0,40).map(t=>({taskId:t.id,title:t.title,status:t.status,...Object.fromEntries(['startsAt','dueAt','deferredUntil'].filter(key=>Number.isFinite(Date.parse(t[key]))).map(key=>[key,{...stamp(t[key]),date:dateKey(t[key]),day:dateKey(t[key])===today?'今天':dateKey(t[key])<today?'今天以前':'今天以后',elapsed:Date.parse(t[key])<now.getTime()}]))}));
+  return (state.tasks||[]).filter(t=>!['completed','cancelled'].includes(t.status)&&!t.isContainer).slice(0,40).map(t=>({taskId:t.id,title:t.title,status:t.status,...(t.scheduledDate?{scheduledDate:{date:t.scheduledDate,day:t.scheduledDate===today?'今天':t.scheduledDate<today?'今天以前':'今天以后',time:'未指定具体时刻'}}:{}),...Object.fromEntries(['startsAt','dueAt','deferredUntil'].filter(key=>Number.isFinite(Date.parse(t[key]))).map(key=>[key,{...stamp(t[key]),date:dateKey(t[key]),day:dateKey(t[key])===today?'今天':dateKey(t[key])<today?'今天以前':'今天以后',elapsed:Date.parse(t[key])<now.getTime()}]))}));
 }
 module.exports={dateKey,stamp,rules,history,schedule};

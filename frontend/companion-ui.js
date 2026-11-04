@@ -30,8 +30,9 @@
     $('#momentUnread').hidden=!latest||feedOpen||Date.parse(latest.createdAt)<=Date.parse(state.momentsSeenAt||0);
     window.momentUI?.render();
   }
-  function showChat(){feedOpen=false;feed.hidden=true;$('.chat-card').hidden=false;momentNav.classList.remove('is-active');momentNav.removeAttribute('aria-current');$('#chatNavButton').classList.add('is-active');$('#chatNavButton').setAttribute('aria-current','page');render();}
+  function showChat(){window.calendarUI?.hide();feedOpen=false;feed.hidden=true;$('.chat-card').hidden=false;momentNav.classList.remove('is-active');momentNav.removeAttribute('aria-current');$('#chatNavButton').classList.add('is-active');$('#chatNavButton').setAttribute('aria-current','page');render();}
   function openFeed(id,friendId=null){
+    window.calendarUI?.hide();
     window.momentUI?.prepare(id,friendId);
     if(!profileModal.classList.contains('hidden'))closeProfile();
     toggleTaskPanel(false);feedOpen=true;feed.hidden=false;$('.chat-card').hidden=true;momentNav.classList.add('is-active');momentNav.setAttribute('aria-current','page');$('#chatNavButton').classList.remove('is-active');$('#chatNavButton').removeAttribute('aria-current');state.momentsSeenAt=now();render();save().catch(error=>showToast(error.message));
@@ -50,7 +51,7 @@
   }
   function closeSelf(){if(selfSaving)return;selfModal.classList.add('hidden');$('.app-shell').inert=false;if(selfReturnFocus?.isConnected)selfReturnFocus.focus({preventScroll:true});else selfRail.focus({preventScroll:true});}
   $('#selfProfileForm').addEventListener('submit',async event=>{
-    event.preventDefault();if(selfSaving)return;if(avatarLoads||agentBusy){$('#selfProfileStatus').textContent=avatarLoads?'头像正在处理，请稍候。':'请等待当前消息处理完毕。';return;}
+    event.preventDefault();if(selfSaving)return;if(avatarLoads){$('#selfProfileStatus').textContent='头像正在处理，请稍候。';return;}
     const previous={userName:state.settings.userName,userAvatar:state.settings.userAvatar};selfSaving=true;$('#saveSelfProfileButton').disabled=true;
     try{const identity=window.chatProfile.get({...state.settings,userName:$('#userNameInput').value,userAvatar:profileDraft.userAvatar});Object.assign(state.settings,{userName:identity.userName,userAvatar:identity.userAvatar});await save();renderAll();$('#selfProfileStatus').textContent='资料已保存。';selfModal.querySelector('[data-close-self].icon-button').focus();}catch(error){Object.assign(state.settings,previous);$('#selfProfileStatus').textContent='保存失败：'+error.message;}finally{selfSaving=false;$('#saveSelfProfileButton').disabled=false;}
   });
@@ -58,10 +59,10 @@
     if(event.key==='Escape'){event.preventDefault();event.stopPropagation();closeSelf();}
     if(event.key==='Tab'){const nodes=[...selfModal.querySelectorAll('button,input')].filter(el=>!el.disabled&&el.getClientRects().length),first=nodes[0],last=nodes.at(-1);if(event.shiftKey&&document.activeElement===first){event.preventDefault();last.focus();}else if(!event.shiftKey&&document.activeElement===last){event.preventDefault();first.focus();}}
   });
-  $('#editCompanionButton').addEventListener('click',async()=>{if(agentBusy){$('#companionStatus').textContent='等这条消息处理完，就可以编辑资料了。';return;}try{await loadDraft();$('#companionForm').hidden=false;$('#companionStatus').textContent='';$('#assistantNameInput').focus();}catch(error){$('#companionStatus').textContent='暂时无法打开编辑：'+error.message;}});
+  $('#editCompanionButton').addEventListener('click',async()=>{try{await loadDraft();$('#companionForm').hidden=false;$('#companionStatus').textContent='';$('#assistantNameInput').focus();}catch(error){$('#companionStatus').textContent='暂时无法打开编辑：'+error.message;}});
   $('#cancelCompanionEdit').addEventListener('click',()=>{$('#companionForm').hidden=true;$('#companionStatus').textContent='';$('#editCompanionButton').focus();});
   $('#companionForm').addEventListener('submit',async event=>{
-    event.preventDefault();if(profileSaving)return;if(agentBusy||avatarLoads){$('#companionStatus').textContent=avatarLoads?'头像正在处理，请稍候。':'请等待当前消息处理完毕。';return;}
+    event.preventDefault();if(profileSaving)return;if(avatarLoads){$('#companionStatus').textContent='头像正在处理，请稍候。';return;}
     const previous=structuredClone(state.settings);profileSaving=true;$('#saveCompanionButton').disabled=true;
     try{
       promptDrafts[activePromptTone]=$('#systemPromptInput').value.trim()||defaultTonePrompts[activePromptTone]||'';const tone=$('#toneInput').value;

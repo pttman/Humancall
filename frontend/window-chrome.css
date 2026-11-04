@@ -1,0 +1,9 @@
+.window-controls{position:fixed;top:7px;right:8px;z-index:100;display:flex;gap:2px;-webkit-app-region:no-drag}
+.window-controls button{display:grid;place-items:center;width:34px;height:27px;min-width:0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);box-shadow:none;cursor:default}
+.window-controls button:hover{background:color-mix(in srgb,var(--muted) 12%,transparent);color:var(--text)}.window-controls .window-close:hover{background:#dd4d5b;color:#fff}.window-controls button:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+.window-controls svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.2;stroke-linecap:round;stroke-linejoin:round}.window-controls .window-restore-icon{display:none}.window-controls.is-maximized .window-maximize-icon{display:none}.window-controls.is-maximized .window-restore-icon{display:block}
+body[data-desktop-platform] :is(.conversation-heading,.chat-heading,.calendar-header,.moments-heading){-webkit-app-region:drag}
+body[data-desktop-platform] :is(button,input,select,textarea,a,[role=button]){-webkit-app-region:no-drag}
+body[data-desktop-platform="win32"] :is(.chat-heading,.calendar-header,.moments-heading){padding-top:37px}
+body[data-desktop-platform="darwin"] .app-rail{padding-top:55px}
+@media(max-width:760px){body[data-desktop-platform="win32"] .window-controls{top:3px;right:4px}body[data-desktop-platform="win32"] :is(.calendar-header,.moments-heading,.chat-heading){padding-top:36px}}

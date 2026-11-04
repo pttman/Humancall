@@ -1,6 +1,9 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('desktopDispatch', {
+  platform:process.platform,
+  windowControl:action=>ipcRenderer.invoke('window:control',action),
+  onWindowState:callback=>ipcRenderer.on('window:state',(_,value)=>callback(value)),
 
   chooseDataDirectory: () => ipcRenderer.invoke('storage:choose'),
   openExternal: (url) => ipcRenderer.invoke('external:open', url),

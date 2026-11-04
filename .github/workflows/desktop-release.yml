@@ -36,6 +36,8 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npm run check
       - run: npm test
+      - name: Verify responsive Agent interactions
+        run: npm run test:responsive-agent
       - name: Build Windows installer
         if: matrix.platform == 'windows'
         env:

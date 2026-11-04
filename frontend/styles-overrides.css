@@ -617,7 +617,7 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 /* Processing a transaction: prevent stale manual edits until its result returns. */
-body.agent-running button, body.agent-running select { pointer-events: none; opacity: .65; }
+/* An active Agent only disables sending; navigation and editing stay available. */
 .execution-trace { margin-top: 8px; font-size: 12px; }
 .execution-trace summary { cursor: pointer; }
 .execution-trace ol { padding-left: 20px; }

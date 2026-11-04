@@ -18,11 +18,11 @@ function createSupervisor({ readState, agent = runAgent, clock = () => new Date(
     if (!settings.notifications || (!force && (state.pendingConfirmation || new Date(settings.quietUntil || 0)>now || !withinWorkHours(settings,now) || (reason==='passive' && settings.passiveNudgesEnabled===false)))) return {suppressed:true,retry:true};
     const pending=state.agentContext?.pendingQuestion;
     const inProgress=t=>!force && ['meeting','appointment'].includes(t.kind) && t.startsAt && t.durationMinutes && now>=new Date(t.startsAt) && now.getTime()<Date.parse(t.startsAt)+t.durationMinutes*60000;
-    const eligible=t=>!inProgress(t) &&!t.isContainer && !['completed','cancelled'].includes(t.status) && (!deferredAt(t) || new Date(deferredAt(t))<=now) && (!t.startsAt || force || new Date(t.startsAt).getTime()-now.getTime()<=15*60000);
+    const eligible=t=>(force||!t.scheduledDate||new Date(t.scheduledDate+'T00:00:00')<=now)&&!inProgress(t) &&!t.isContainer && !['completed','cancelled'].includes(t.status) && (!deferredAt(t) || new Date(deferredAt(t))<=now) && (!t.startsAt || force || new Date(t.startsAt).getTime()-now.getTime()<=15*60000);
     const task=taskId ? state.tasks.find(t=>t.id===taskId && eligible(t)) : state.tasks.find(t=>t.id===pending?.taskId && eligible(t)) || state.tasks.filter(t=>t.startsAt && eligible(t)).sort((a,b)=>Date.parse(a.startsAt)-Date.parse(b.startsAt))[0] || state.tasks.find(t=>t.status==='active' && eligible(t)) || state.tasks.find(eligible);
     if (!task) return {suppressed:true};
     // A confirmed appointment in progress needs no repeated progress interrogation.
-    const interval=Math.max(5,Number(settings.passiveNudgeMinutes)||10)*60000;
+    const interval=Math.max(5,Number(settings.passiveNudgeMinutes)||30)*60000;
     if (!force && (now.getTime()-(lastAt.get(task.id) || 0)<interval || (pending?.askedAt && now-new Date(pending.askedAt)<interval))) return {suppressed:true,retry:true};
     busy=true; lastAt.set(task.id,now.getTime()); const before=snapshot(state);
     try {

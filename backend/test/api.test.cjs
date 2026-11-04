@@ -19,6 +19,10 @@ test('HTTP 数据、备份、模型降级、静态资源和来源限制', async 
   state.settings.apiKey = 'test-secret';
   assert.equal((await send('/api/state', 'PUT', state)).status, 200);
   assert.equal((await get('/api/state')).tasks[0].title, '检查配置');
+  const baseline=require('../../frontend/state-merge.js').baseOf(await get('/api/state'));
+  const stale=await get('/api/state'),newer=structuredClone(stale);newer.tasks.push({id:'server-created',title:'Agent刚创建的事项',status:'inbox'});core.writeState(newer);
+  stale.tasks[0].title='同时手动编辑';stale._clientBase=baseline;
+  const merged=await (await send('/api/state','PUT',stale)).json();assert.equal(merged.tasks.find(t=>t.id==='task-1').title,'同时手动编辑');assert.ok(merged.tasks.some(t=>t.id==='server-created'));assert.equal(merged._clientBase,undefined);assert.equal(core.readState()._clientBase,undefined);
   const backup = await get('/api/backup'); assert.equal(backup.settings.apiKey, '');
   backup.tasks[0].title = '导入后的任务';
   const imported = await (await send('/api/backup', 'POST', backup)).json();

@@ -17,15 +17,15 @@
   }
   async function select(id){
     if(!window.friends.ids.includes(id))return false;
-    if(agentBusy||supervisionBusy||chatClearing||friendSwitching||window.companionUI?.isSaving()){showToast('请等待当前操作完成，再切换朋友');return false;}
+    if(chatClearing||friendSwitching||window.companionUI?.isSaving()){showToast('请等待当前操作完成，再切换朋友');return false;}
     if((state.activeFriendId||'zhixu')===id){window.companionUI?.showChat();return true;}
-    const previous=structuredClone(state);friendSwitching=true;syncComposer();
+    composerDrafts.set(state.activeFriendId||'zhixu',$('#chatInput').value);const previous=structuredClone(state);friendSwitching=true;syncComposer();
     try{
-      window.voiceUI?.stop();window.friends.select(state,id);window.conversationState.reconcile(state);chatSearchQuery='';$('#chatSearchInput').value='';$('#chatInput').value='';
+      window.voiceUI?.stop();window.friends.select(state,id);window.conversationState.reconcile(state);chatSearchQuery='';$('#chatSearchInput').value='';$('#chatInput').value=composerDrafts.get(id)||'';
       if(!state.messages.length){const name=window.chatProfile.get(state.settings).assistantName;appendMessage('assistant',id==='luye'?'我叫'+name+'。想聊什么都行，今天的离谱事也归我收。':'我是'+name+'，今天有什么想聊的，或需要我帮你安排的事？');}
       await save();bubbleReplyQueue.length=0;await window.humanDispatch.clearBubbles().catch(()=>{});window.companionUI?.showChat();renderAll();return true;
-    }catch(error){Object.assign(state,previous);try{Object.assign(state,await window.humanDispatch.loadState());}catch{}renderAll();showToast('切换未完成：'+error.message);return false;}
-    finally{friendSwitching=false;syncComposer();$('#chatInput').focus();}
+    }catch(error){Object.assign(state,previous);try{adoptState(await window.humanDispatch.loadState());}catch{}renderAll();showToast('切换未完成：'+error.message);return false;}
+    finally{friendSwitching=false;syncComposer();$('#chatInput').focus();flushBubbleReplyQueue();}
   }
   for(const button of [primary,second])button.addEventListener('click',event=>{if(event.target.closest('.contact-avatar'))return;select(button.dataset.friendId);});
   window.friendsUI={render,select};render();
