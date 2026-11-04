@@ -6,10 +6,22 @@ build/
 *.log
 
 .env
+.env.*
+!.env.example
 backend/data/
 work/
 
 design/
 tools/pixel2motion/
 backend/data-directory.txt
-backend/data-directory.txt.tmp
+
+# Local development entry point and temporary files
+/快速启动.vbs
+*.tmp
+*.bak
+*.swp
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+[Dd]esktop.ini
