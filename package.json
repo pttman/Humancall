@@ -7,6 +7,7 @@
     "start": "electron .",
     "dev:voice": "node tools/launch-voice-dev.cjs",
     "dev:calendar": "node tools/launch-calendar-dev.cjs",
+    "docs:overview": "node tools/generate-feature-overview.cjs",
     "test:speech-ui": "node tools/run-speech-ui-test.cjs",
     "test:model-settings": "node tools/run-model-settings-test.cjs",
     "test:calendar-ui": "node tools/run-calendar-ui-test.cjs",

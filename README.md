@@ -8,6 +8,8 @@
 
 ![人类调度功能一览：主页面、任务清单、消息提醒、语音回复、瞬笺、个人资料与日历](docs/media/humancall-feature-overview.png)
 
+[查看 6K 高清原图](docs/media/humancall-feature-overview.png?raw=true) · 6000 × 3600，真实界面截图合成。
+
 ## 待办清单、任务管理与日程提醒
 
 - **AI 待办清单 / To-do List**：聊天记录待办，时间没定也先保存，避免想做的事被漏掉。
