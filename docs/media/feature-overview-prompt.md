@@ -50,4 +50,3 @@ Use subdued gray for October/December overflow dates. Select ONLY November 4 in 
 CRITICAL correction 2: Add a small outline calendar icon in the BASE CHAT WINDOW navigation rail, positioned between the task-list icon and the 瞬笺 icon, matching the existing icon style and spacing. Keep original chat/task/moments/settings icons, subtly re-space if needed.
 Correct partner names must stay 知序 and 枫言. Keep all seven numbered labels unchanged. Keep typography sharp. Return the corrected poster with only these targeted changes.
 ```
-
