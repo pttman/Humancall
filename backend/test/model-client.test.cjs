@@ -1,5 +1,6 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');
 const {requestOptions,modelError}=require('../model-client.cjs');const {runAgent}=require('../agent.cjs');
+require('./helpers/storage.cjs')('model-client');
 test('DeepSeek 官方接口采用 auto、关闭思考且不发送 parallel_tool_calls',()=>{
  for(const baseUrl of ['https://api.deepseek.com','https://api.deepseek.com/v1/','https://api.deepseek.com/chat/completions']){
   const {endpoint,parameters}=requestOptions({baseUrl});assert.ok(endpoint.endsWith('/chat/completions'));assert.equal(parameters.tool_choice,'auto');assert.equal(parameters.thinking.type,'disabled');assert.ok(!Object.hasOwn(parameters,'parallel_tool_calls'));

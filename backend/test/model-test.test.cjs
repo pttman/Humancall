@@ -1,6 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),os=require('node:os'),path=require('node:path'),http=require('node:http');
 const {testModel}=require('../model-test.cjs'),core=require('../core.cjs'),{createServer}=require('../server.cjs');
+require('./helpers/storage.cjs')('model-probe');
 const settings=()=>({baseUrl:'https://api.deepseek.com',apiKey:'chat-secret',model:'deepseek-flash',speech:{apiKey:'voice-secret'},systemPrompt:'private persona'});
 const reply=message=>Response.json({choices:[{message}]});
 const toolReply=()=>({role:'assistant',tool_calls:[{function:{name:'connection_check',arguments:'{"ok":true}'}}]});
