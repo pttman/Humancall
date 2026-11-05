@@ -17,7 +17,7 @@
   function context(state,id,key){return (state.activeFriendId||'zhixu')===id?state[key]:state.friends?.[id]?.[key];}
   function baseOf(state){if(!state)return null;return {activeFriendId:state.activeFriendId,...Object.fromEntries(fields.map(key=>[key,copy(state[key]||[])])),agentContext:copy(state.agentContext),pendingConfirmation:copy(state.pendingConfirmation),friends:Object.fromEntries(ids.map(id=>[id,{agentContext:copy(context(state,id,'agentContext')),pendingConfirmation:copy(context(state,id,'pendingConfirmation'))}]))};}
   function shared(base,incoming,latest){
-    if(!base)return incoming;const result={...incoming};for(const key of fields)result[key]=records(base[key],incoming[key],latest[key]);
+    if(!base)return incoming;const result={...incoming,generationUsage:copy(latest.generationUsage||[])};for(const key of fields)result[key]=records(base[key],incoming[key],latest[key]);
     if(incoming.friends){result.friends=copy(incoming.friends);for(const id of ids){result.friends[id]||={};for(const key of ['agentContext','pendingConfirmation']){const merged=value(context(base,id,key),context(incoming,id,key),context(latest,id,key));result.friends[id][key]=merged;if((incoming.activeFriendId||'zhixu')===id)result[key]=merged;}}}
     return result;
   }

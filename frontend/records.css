@@ -15,3 +15,5 @@
 .settings-scroll::-webkit-scrollbar-thumb,.record-details::-webkit-scrollbar-thumb,.companion-card::-webkit-scrollbar-thumb,.self-profile-card::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--muted) 40%,transparent);border-radius:6px}
 .settings-scroll::-webkit-scrollbar-thumb:hover,.record-details::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--muted) 70%,transparent)}
 @media(max-width:640px){.records-card{padding:16px;width:calc(100vw - 20px)}.records-filters{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}.records-search{grid-column:1/2}.records-tabs{gap:17px}.record-detail-heading{align-items:flex-start;flex-direction:column;gap:4px}.settings-people-grid{grid-template-columns:minmax(0,1fr)}:root #settingsModal .modal-card{padding:17px 16px 12px;width:calc(100vw - 20px)}}
+
+.rice-statistics{text-align:left;line-height:1.8;overflow-wrap:anywhere}.rice-calls{margin-top:12px;font-size:12px;color:var(--muted)}.rice-calls summary{cursor:pointer;color:var(--green)}.rice-calls p{padding:8px 12px;background:var(--panel-2);border-radius:4px}.records-tabs{overflow-x:auto;white-space:nowrap}.rice-calls small{font-size:11px}

@@ -47,6 +47,7 @@
   }
   function closeProfile(){if(profileSaving)return;profileModal.classList.add('hidden');$('#companionForm').hidden=true;$('.app-shell').inert=false;if(profileReturnFocus?.isConnected)profileReturnFocus.focus({preventScroll:true});}
   function openSelf(){
+    window.recordsUI?.refreshUsage();
     if(chatClearing||profileSaving)return;if(!profileModal.classList.contains('hidden'))closeProfile();selfReturnFocus=document.activeElement;openProfileSettings(state.settings);$('#selfProfileStatus').textContent='';selfModal.classList.remove('hidden');$('.app-shell').inert=true;selfModal.querySelector('[data-close-self].icon-button').focus();
   }
   function closeSelf(){if(selfSaving)return;selfModal.classList.add('hidden');$('.app-shell').inert=false;if(selfReturnFocus?.isConnected)selfReturnFocus.focus({preventScroll:true});else selfRail.focus({preventScroll:true});}

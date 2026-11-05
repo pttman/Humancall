@@ -9,7 +9,7 @@ async function chat(payload, { readState = core.readState, saveState = core.writ
   const readCurrent=()=>forSource(readState());
   const state = readCurrent(),sourceFriendId=payload.friendId||state.activeFriendId||'zhixu';
   signal?.throwIfAborted();
-  const settings = { ...state.settings, ...(payload.settings || {}) };
+  const settings = require('./generation-usage.cjs').settingsWithUsage({ ...state.settings, ...(payload.settings || {}), generationUsage:null },{kind:payload.testAgent===true?'model_test':'chat',friendId:sourceFriendId,taskId:payload.context?.taskId||''});
   settings.apiKey = settings.apiKey || process.env.MODEL_API_KEY || '';
   if (process.env.MODEL_BASE_URL && !payload.settings) settings.baseUrl = process.env.MODEL_BASE_URL;
   if (process.env.MODEL_NAME && !payload.settings) settings.model = process.env.MODEL_NAME;

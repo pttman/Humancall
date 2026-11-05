@@ -27,5 +27,5 @@ test('官方形状请求、工具返回后的下一轮与文本结束兼容，�
  };
  const settings={apiKey:'test',model:'deepseek-flash',baseUrl:'https://api.deepseek.com/v1'};
  const state={settings,tasks:[],reminders:[],projects:[],messages:[],supervisionEvents:[]};
- const result=await runAgent({settings,text:'测试连接',state});assert.equal(n,3);assert.equal(result.reply,'连接测试成功');assert.equal(result.dirty,false);assert.ok(!JSON.stringify(result).includes('transient-test-reasoning'));
+ const result=await runAgent({settings,text:'测试连接',state});assert.equal(n,2);assert.equal(result.reply,'连接测试成功');assert.equal(result.dirty,false);assert.ok(!JSON.stringify(result).includes('transient-test-reasoning'));
 });

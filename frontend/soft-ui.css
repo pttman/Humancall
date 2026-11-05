@@ -26,7 +26,7 @@
 @media(max-width:760px){.messenger-shell .side-column{width:100%;max-width:100%;padding-inline:12px}.messenger-shell .task-item{padding-inline:9px;column-gap:8px}.messenger-shell .task-item.subtask{padding-left:19px}.messenger-shell .task-toolbar{grid-template-columns:minmax(80px,1fr) 112px}.messenger-shell .task-toolbar .compact-toggle{grid-column:1/-1}.messenger-shell button.task-title{font-size:13px}}
 
 .task-edit{border:0;background:transparent;color:var(--green);padding:5px 3px;font-size:11px;cursor:pointer;border-radius:7px}.task-edit:hover{background:var(--panel-2)}
-#clearTasksButton:disabled{opacity:.4;cursor:default}.entry-modal-card{max-height:90vh;overflow:auto}#entryTaskFields label{min-width:0}#entryTaskFields input{min-width:0;width:100%}
+#clearTasksButton:disabled{opacity:.4;cursor:default}.entry-modal-card{max-height:90vh;overflow:auto}#entryTaskFields{align-items:start}#entryTaskFields label{min-width:0;align-content:start}#entryTaskFields input{min-width:0;width:100%}
 .settings-form .hidden{display:none!important}
 #entryModal .entry-modal-card{display:flex;flex-direction:column;overflow:hidden;min-height:0}
 #entryModal .modal-header{flex:none;padding-bottom:14px;border-bottom:1px solid var(--line)}

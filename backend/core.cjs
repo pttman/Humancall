@@ -62,6 +62,7 @@ const defaultState = {
   reminders: [],
   projects: [{ id: 'default', name: '默认项目', color: '#78e3b1' }],
   messages: [],
+  generationUsage: [],
   moments: [],
   momentActivity: {},
   supervisionEvents: []
@@ -94,7 +95,11 @@ function readState() {
   }
 }
 
-function writeState(state) {
+function writeState(state,{usageWrite=false}={}) {
+  // A stale UI save must never erase receipts written while a model was running.
+  const receipts=value=>(Array.isArray(value)?value:[]).filter(row=>row&&typeof row.id==='string');
+  state.generationUsage=receipts(state.generationUsage);
+  if(!usageWrite)state.generationUsage=[...new Map([...state.generationUsage,...receipts(readState().generationUsage)].map(row=>[row.id,row])).values()];
   Object.assign(state.settings,nudgeSettings.normalize(state.settings));delete state.settings.reminderMinutes;
   state.settings.speech=speechConfig.normalize(state.settings.speech);
   chatProfile.normalize(state.settings);
@@ -110,6 +115,12 @@ function writeState(state) {
     fs.renameSync(temporary, target);
   } finally { if (fs.existsSync(temporary)) fs.unlinkSync(temporary); }
   return state;
+}
+
+function recordGenerationUsage(record){
+  const state=readState(),rows=Array.isArray(state.generationUsage)?state.generationUsage:[];
+  state.generationUsage=[...rows.filter(row=>row.id!==record.id),{...record}];
+  writeState(state,{usageWrite:true});
 }
 
 function normalizeImportedState(parsed, currentState) {
@@ -149,6 +160,7 @@ function extractJson(text) {
 }
 
 async function callModel({ settings, messages, tasks, reminders }) {
+  settings=require('./generation-usage.cjs').settingsWithUsage(settings,{kind:'chat'});
   const endpoint = normalizeBaseUrl(settings.baseUrl);
   if (!endpoint || !settings.apiKey) throw new Error('未配置 API Base URL 或 API Key');
   const taskContext = tasks.slice(0, 50).map((task) => ({
@@ -166,7 +178,7 @@ async function callModel({ settings, messages, tasks, reminders }) {
     '完成任务时优先用 complete_task；用户说遇到问题用 block_task；用户说“推到明天做”“明天再做”或要求延期时，必须对现有任务使用 snooze_task 并提供 dueAt 和 followUpMinutes，不能创建新任务，客户端会在此期间静默。用户要求删除单个任务时返回 delete_task，并提供 taskId 或精确 title；客户端必须二次确认后才执行。用户明确要求清空全部任务时可以返回 clear_all_tasks，但客户端必须二次确认后才执行。不要臆造用户已经完成或要求删除。\n' +
     '创建提醒时必须提供 nextAt（ISO 时间）；一次性提醒 repeat 为 none，每天重复为 daily，每周重复为 weekly，并提供 weekday（周日为 0）。\n' +
     `当前任务：${JSON.stringify(taskContext)}\n当前提醒：${JSON.stringify(reminderContext)}`;
-  const response = await networkFetch(endpoint, {
+  const response = await require('./generation-usage.cjs').generationFetch(endpoint, {
     signal: AbortSignal.timeout(30000),
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${settings.apiKey}` },
@@ -176,8 +188,8 @@ async function callModel({ settings, messages, tasks, reminders }) {
       messages: [{ role: 'system', content: system+'\n当前时间：'+JSON.stringify(temporal.stamp(new Date()))+'。'+temporal.rules }, ...temporal.history(messages,messages.at(-1)?.content||'')],
       response_format: { type: 'json_object' }
     })
-  });
-  if (!response.ok) throw new Error(`模型请求失败（${response.status}）`);
+  },{settings,purpose:'reply',fetchImpl:networkFetch});
+  if (!response.ok) { await response.json().catch(()=>{}); throw new Error(`模型请求失败（${response.status}）`); }
   const payload = await response.json();
   const content = payload?.choices?.[0]?.message?.content || '';
   const parsed = extractJson(content);
@@ -303,4 +315,4 @@ function localFallback(text, tasks, settings={}) {
 }
 
 
-module.exports = { configureDataDirectory, momentMediaDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };
+module.exports = { recordGenerationUsage, configureDataDirectory, momentMediaDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };
