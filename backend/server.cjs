@@ -113,6 +113,8 @@ if (require.main === module) {
   const configPath = path.join(__dirname, 'data-directory.txt');
   const saved = fs.existsSync(configPath) ? fs.readFileSync(configPath, 'utf8').trim() : '';
   const storage = createStorageController({ initialDirectory: saved || path.resolve(__dirname, process.env.DATA_DIR || 'data'), configPath });
+  const startupState=core.readState();
+  if(require('../frontend/task-recovery.js').recover(startupState,new Date(),require('node:crypto').randomUUID))core.writeState(startupState);
   const server = createServer({ storage });
   server.listen(Number(process.env.PORT || 3001), process.env.HOST || '127.0.0.1', () => console.log(`后端已启动：http://${process.env.HOST || '127.0.0.1'}:${server.address().port}`));
   server.on('error', error => { console.error(error.message); process.exitCode = 1; });

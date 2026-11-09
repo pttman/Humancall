@@ -24,6 +24,7 @@ let passiveTimer;
 const appIconPngPath = path.join(__dirname, '..', 'assets', 'app-icon.png');
 const appIconIcoPath = path.join(__dirname, '..', 'assets', 'app-icon.ico');
 const appIconPath = process.platform === 'win32' ? appIconIcoPath : appIconPngPath;
+const windowsAppId='com.human-dispatch.desktop'+(app.isPackaged?'':'.dev');
 function dataDirectory() {
   const configPath = path.join(app.getPath('userData'), 'data-directory.txt');
   if (!fs.existsSync(configPath)) return app.getPath('userData');
@@ -66,6 +67,16 @@ function createWindow() {
       nodeIntegration: false
     }
   });
+  if(process.platform==='win32'){
+    // The taskbar also needs relaunch metadata; a development process otherwise
+    // inherits Electron's executable/shortcut icon when minimized or pinned.
+    mainWindow.setAppDetails({
+      appId:windowsAppId,appIconPath:app.isPackaged?process.execPath:appIconIcoPath,appIconIndex:0,
+      relaunchCommand:[process.execPath,...(app.isPackaged?[]:[app.getAppPath()])].map(value=>'"'+value+'"').join(' '),
+      relaunchDisplayName:'人类调度'+(app.isPackaged?'':'（开发版）')
+    });
+    mainWindow.setIcon(appIconIcoPath);
+  }
   mainWindow.setMenuBarVisibility(false);
   mainWindow.setAutoHideMenuBar(true);
   if(process.platform==='win32')mainWindow.setMenu(null);
@@ -180,7 +191,7 @@ function startPassiveSupervisor() {
   passiveTimer = setInterval(() => passiveNudge(false), 15000);
 }
 
-if (process.platform === 'win32') app.setAppUserModelId('com.human-dispatch.desktop');
+if (process.platform === 'win32') app.setAppUserModelId(windowsAppId);
 
 if(voiceDevelopment)app.on('second-instance',()=>{if(mainWindow&&!mainWindow.isDestroyed()){mainWindow.show();mainWindow.focus();}});
 
@@ -203,6 +214,8 @@ app.whenReady().then(async () => {
     { role: 'windowMenu' }
   ]) : null);
   configureDataDirectory(dataDirectory());
+  const startupState=readState();
+  if(require('../frontend/task-recovery.js').recover(startupState,new Date(),require('node:crypto').randomUUID))require('../backend/core.cjs').writeState(startupState);
   const storage = createStorageController({ initialDirectory: dataDirectory(), configPath: path.join(app.getPath('userData'), 'data-directory.txt'), encoding: 'utf16le' });
   apiServer = createServer({ storage, onStateSaved:pruneBubbles });
   ipcMain.handle('window:control',(event,action)=>{

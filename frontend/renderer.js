@@ -565,7 +565,7 @@ async function requestCheckIn(payload = {}) {
   } catch { return false; /* Retry without generating a misleading fixed nudge. */ }
   finally { supervisionBusy=false; }
 }
-async function notifyTask(task) { return state.settings.notifications ? requestCheckIn({taskId:task.id,reason:'scheduled'}) : false; }
+async function notifyTask(task,reason='scheduled') { return state.settings.notifications ? requestCheckIn({taskId:task.id,reason}) : false; }
 
 function recordProactive(payload,id,context={}) {
   const friendId=state.activeFriendId||'zhixu',messageId='notice-'+id;
@@ -573,16 +573,26 @@ function recordProactive(payload,id,context={}) {
   return {...payload,bubbleId:messageId,messageId,friendId,...context};
 }
 let supervisionScheduleBusy=false;
+async function checkStartupRecovery(current=new Date()){
+  const recovery=state.startupRecovery;
+  if(!recovery||recovery.notifiedAt||!state.settings.notifications||new Date(recovery.scheduledAt)>current||window.taskRecovery.nextAllowed(state.settings,current)>current)return;
+  const tasks=state.tasks.filter(t=>recovery.taskIds.includes(t.id)&&window.conversationState.isOpenTask(t)&&recovery.tasks[t.id]?.signature===window.taskRecovery.signature(t));
+  if(!tasks.length){recovery.notifiedAt=current.toISOString();await save();return;}
+  const notice=recordProactive({title:'启动检查 · 过期任务',kind:'startup_recovery',body:`发现 ${tasks.length} 项过期未完成任务，已恢复后续逐项提醒。原定时间保留，请确认新的安排：\n`+tasks.slice(0,8).map(t=>'• '+t.title).join('\n')+(tasks.length>8?'\n其余事项可在清单中查看。':'')},recovery.id,{taskIds:tasks.map(t=>t.id)});
+  await save();renderAll();
+  await window.humanDispatch.notify(notice);
+  if(state.startupRecovery?.id===recovery.id){state.startupRecovery.notifiedAt=current.toISOString();await save();}
+}
 async function checkSupervision() {
   if(agentBusy||supervisionScheduleBusy||chatClearing||friendSwitching)return;
   supervisionScheduleBusy=true;
   try{
-    const current=new Date();let changed=window.conversationState.reconcile(state);const notices=[];
+    const current=new Date();await checkStartupRecovery(current).catch(()=>{});let changed=window.conversationState.reconcile(state);const notices=[];
     for(const event of state.supervisionEvents){
       if(agentBusy)break;
       if(!event.sent&&new Date(event.scheduledAt)<=current){
         const task=event.taskId?state.tasks.find(item=>item.id===event.taskId):null;
-        if(task&&!await notifyTask(task))continue;
+        if(task&&!await notifyTask(task,event.reason||'scheduled'))continue;
         if(event.type==='rest_end'&&state.settings.notifications)notices.push(recordProactive({title:'人类调度 · 休息结束',body:event.body||'休息结束。回来决定下一项工作。'},event.id,{eventId:event.id}));
         event.sent=true;changed=true;
       }
@@ -926,7 +936,7 @@ $('#completeButton').addEventListener('click', () => quickUpdate('completed')); 
 
 window.addEventListener('keydown', (event) => { if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.code === 'Space') { event.preventDefault(); focusComposerIfAvailable(); } });
 
-(async function init() { const loaded = await window.humanDispatch.loadState(); adoptState(loaded); state.reminders = loaded.reminders || []; state.pendingConfirmation = loaded.pendingConfirmation || null; renderAll(); if (!state.messages.length) addMessage('assistant', '我是'+window.chatProfile.get(state.settings).assistantName+'，今天有什么想聊的，或需要我帮你安排的事？'); requestAnimationFrame(() => { window.scrollTo(0, 0); focusComposerIfAvailable(); showConfigReminder(); }); checkReminders(); setInterval(() => { checkSupervision(); checkReminders(); if (!window.desktopDispatch) requestCheckIn(); }, 15000); })();
+(async function init() { const loaded = await window.humanDispatch.loadState(); adoptState(loaded); state.reminders = loaded.reminders || []; state.pendingConfirmation = loaded.pendingConfirmation || null; renderAll(); if (!state.messages.length) addMessage('assistant', '我是'+window.chatProfile.get(state.settings).assistantName+'，今天有什么想聊的，或需要我帮你安排的事？'); requestAnimationFrame(() => { window.scrollTo(0, 0); focusComposerIfAvailable(); showConfigReminder(); }); await checkSupervision(); await checkReminders(); setInterval(() => { checkSupervision(); checkReminders(); if (!window.desktopDispatch) requestCheckIn(); }, 15000); })();
 
 function toggleTaskPanel(open) {
   $('#taskPanel').hidden=!open; $('#taskPanel').inert=!open; $('#taskPanelBackdrop').hidden=!open;

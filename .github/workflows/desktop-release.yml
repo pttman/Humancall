@@ -38,6 +38,11 @@ jobs:
       - run: npm test
       - name: Verify responsive Agent interactions
         run: npm run test:responsive-agent
+      - name: Verify startup task recovery
+        run: npm run test:startup-recovery
+      - name: Verify Windows taskbar identity
+        if: matrix.platform == 'windows'
+        run: npm run test:taskbar-icon
       - name: Build Windows installer
         if: matrix.platform == 'windows'
         env:

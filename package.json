@@ -1,6 +1,6 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.26",
+  "version": "0.1.27",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
@@ -12,6 +12,8 @@
     "test:model-settings": "node tools/run-model-settings-test.cjs",
     "test:calendar-ui": "node tools/run-calendar-ui-test.cjs",
     "test:responsive-agent": "node tools/run-responsive-agent-test.cjs",
+    "test:startup-recovery": "node tools/run-electron-check.cjs test-startup-recovery.cjs",
+    "test:taskbar-icon": "node tools/run-electron-check.cjs test-taskbar-icon.cjs",
     "check": "node tools/check.cjs",
     "pack:offline": "node tools/package-portable.cjs",
     "pack": "npm run check && electron-builder --dir",
