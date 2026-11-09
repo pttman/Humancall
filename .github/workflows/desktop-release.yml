@@ -47,7 +47,7 @@ jobs:
         if: matrix.platform == 'windows'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
-        run: npm run dist:installer
+        run: npm run dist:installer -- --config.electronDist=node_modules/electron/dist
       - name: Verify Windows native startup
         if: matrix.platform == 'windows'
         run: node tools/windows-smoke.cjs "release/win-unpacked/人类调度.exe"
