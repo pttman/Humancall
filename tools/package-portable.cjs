@@ -25,7 +25,9 @@ async function main() {
   fs.mkdirSync(path.join(portable, 'resources', 'assets'), { recursive: true });
   fs.mkdirSync(staging, { recursive: true });
   copyTree(path.join(root, 'src'), path.join(staging, 'src'), { recursive: true });
-  for (const name of ['frontend', 'backend']) copyTree(path.join(root, name), path.join(staging, name), { recursive: true, filter: (p) => !['data', 'test', '.env', 'data-directory.txt', 'data-directory.txt.tmp'].includes(path.basename(p)) && (!path.basename(p).startsWith('.env.') || path.basename(p) === '.env.example') });
+  for (const name of ['frontend', 'backend']) copyTree(path.join(root, name), path.join(staging, name), { recursive: true, filter: (p) => !['data', 'test', '.env', 'data-directory.txt', 'data-directory.txt.tmp', 'wechat-connection.json', 'wechat-connection.json.tmp'].includes(path.basename(p)) && (!path.basename(p).startsWith('.env.') || path.basename(p) === '.env.example') });
+  // This QR encoder has no runtime dependencies; include it in the offline asar too.
+  copyTree(path.join(root, 'node_modules', 'qrcode-generator'), path.join(staging, 'node_modules', 'qrcode-generator'));
   copyTree(path.join(root, 'assets'), path.join(staging, 'assets'), { recursive: true });
   fs.rmSync(path.join(staging, 'assets', 'notification.mp3'), { force: true });
   fs.copyFileSync(path.join(root, 'package.json'), path.join(staging, 'package.json'));

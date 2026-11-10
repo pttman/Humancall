@@ -44,6 +44,8 @@ npm run dev
 
 ## API
 
+本地微信接入见 [微信接入说明](wechat.md)。`GET /api/wechat` 返回脱敏状态；`POST /api/wechat/login` 发起扫码，`POST /api/wechat/verify` 提交手机验证码，`POST /api/wechat/cancel` 取消扫码，`PUT /api/wechat` 切换伙伴或暂停 / 启用，`POST /api/wechat/disconnect` 清除本机绑定。连接操作仅允许本机来源，写入需要 JSON。微信凭证单独保存，不出现在状态和备份中。
+
 | 方法 | 路径 | 行为 |
 | --- | --- | --- |
 | GET | /api/health | 健康检查 |

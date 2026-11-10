@@ -23,11 +23,12 @@ async function body(req) {
   for await (const chunk of req) { size += chunk.length; if (size > 8 * 1024 * 1024) throw Object.assign(new Error('请求超过 8 MB'), { status: 413 }); chunks.push(chunk); }
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
-function createServer({ serveFrontend = true, storage, onStateSaved, speechSynthesize=require('./speech.cjs').synthesize } = {}) {
+function createServer({ serveFrontend = true, storage, onStateSaved, speechSynthesize=require('./speech.cjs').synthesize, wechatOptions = {} } = {}) {
   const saveState=value=>{const saved=core.writeState(value);onStateSaved?.(saved);return saved;};
   const checkIn = createSupervisor({readState:core.readState});
   const considerMoment = createMoments({readState:core.readState});
-  return http.createServer(async (req, res) => {
+  const wechat = require('./wechat-service.cjs').createWechatService({ file: path.join(storage?.privateDirectory || core.dataDirectory(), 'wechat-connection.json'), readState: core.readState, saveState, ...wechatOptions });
+  const server = http.createServer(async (req, res) => {
     const send = (status, value) => { if(res.destroyed||res.writableEnded)return;res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(value)); };
     try {
       const origin = req.headers.origin;
@@ -40,6 +41,20 @@ function createServer({ serveFrontend = true, storage, onStateSaved, speechSynth
       if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
       const url = new URL(req.url, 'http://localhost');
       const route = `${req.method} ${url.pathname}`;
+      if (url.pathname.startsWith('/api/wechat')) {
+        // A loopback service has no remote login. Reject cross-site/DNS-rebinding requests here.
+        const host = new URL('http://' + req.headers.host).hostname;
+        const trustedOrigin = !origin || origin === allowed || sameOrigin;
+        if (!['localhost', '127.0.0.1', '[::1]'].includes(host) || !trustedOrigin || req.headers['sec-fetch-site'] === 'cross-site') return send(403, { error: '请从本机人类调度设置中操作微信连接' });
+        if (req.method !== 'GET' && !String(req.headers['content-type'] || '').startsWith('application/json')) return send(415, { error: '需要 JSON 请求' });
+        if (route === 'GET /api/wechat') return send(200, wechat.status());
+        if (route === 'POST /api/wechat/login') { const input = await body(req); return send(200, await wechat.beginLogin(input.friendId)); }
+        if (route === 'POST /api/wechat/cancel') { await body(req); return send(200, await wechat.cancelLogin()); }
+        if (route === 'POST /api/wechat/verify') { const input = await body(req); return send(200, wechat.verifyCode(input.code)); }
+        if (route === 'PUT /api/wechat') return send(200, await wechat.configure(await body(req)));
+        if (route === 'POST /api/wechat/disconnect') { await body(req); return send(200, await wechat.disconnect()); }
+        return send(404, { error: '微信接口不存在' });
+      }
       if(route==='POST /api/models/test'){
         const payload=await body(req),controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);
         try{const result=await require('./model-test.cjs').testModel(payload.settings,{signal:controller.signal});if(!res.destroyed)send(200,result);}finally{res.removeListener('close',cancel);}return;
@@ -107,6 +122,10 @@ function createServer({ serveFrontend = true, storage, onStateSaved, speechSynth
       res.writeHead(200, { 'Content-Type': types[path.extname(target)] || 'application/octet-stream', 'X-Content-Type-Options': 'nosniff' }); res.end(data);
     } catch (error) { send(error.status || (error.code === 'ENOENT' ? 404 : 500), { error: error.message }); }
   });
+  server.wechat = wechat;
+  server.once('listening', () => wechat.start());
+  server.once('close', () => { void wechat.stop(); });
+  return server;
 }
 if (require.main === module) {
   loadEnv();

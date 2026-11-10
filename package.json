@@ -1,6 +1,6 @@
 {
   "name": "human-dispatch",
-  "version": "0.1.27",
+  "version": "0.1.28",
   "description": "人类调度：让 AI 安排、提醒和监督你的工作",
   "main": "src/main.cjs",
   "scripts": {
@@ -10,6 +10,7 @@
     "docs:overview": "node tools/generate-feature-overview.cjs",
     "test:speech-ui": "node tools/run-speech-ui-test.cjs",
     "test:model-settings": "node tools/run-model-settings-test.cjs",
+    "test:wechat-ui": "node tools/run-wechat-ui-test.cjs",
     "test:calendar-ui": "node tools/run-calendar-ui-test.cjs",
     "test:responsive-agent": "node tools/run-responsive-agent-test.cjs",
     "test:startup-recovery": "node tools/run-electron-check.cjs test-startup-recovery.cjs",
@@ -101,5 +102,8 @@
   "workspaces": [
     "frontend",
     "backend"
-  ]
+  ],
+  "dependencies": {
+    "qrcode-generator": "2.0.4"
+  }
 }

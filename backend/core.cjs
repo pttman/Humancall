@@ -71,6 +71,7 @@ const defaultState = {
 
 let directory = process.env.DATA_DIR || path.join(__dirname, 'data');
 function configureDataDirectory(value) { directory = value; }
+function dataDirectory() { return directory; }
 function momentMediaDirectory(){return path.join(directory,'moment-media');}
 function statePath() { return path.join(directory, 'human-dispatch-state.json'); }
 function readState() {
@@ -315,4 +316,4 @@ function localFallback(text, tasks, settings={}) {
 }
 
 
-module.exports = { recordGenerationUsage, configureDataDirectory, momentMediaDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };
+module.exports = { recordGenerationUsage, configureDataDirectory, dataDirectory, momentMediaDirectory, readState, writeState, normalizeImportedState, callModel, localFallback, DEFAULT_SYSTEM_PROMPT, TONE_PROMPTS };

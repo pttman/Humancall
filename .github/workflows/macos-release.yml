@@ -35,7 +35,7 @@ jobs:
         run: |
           test "$RELEASE_TAG" = "v$(node -p 'require("./package.json").version')"
           gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json tagName,isDraft
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --registry=https://registry.npmjs.org --replace-registry-host=always --no-audit --no-fund
       - run: npm run check
       - run: npm test
       - name: Build universal DMG

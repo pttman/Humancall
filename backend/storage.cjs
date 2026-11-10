@@ -5,6 +5,7 @@ function createStorageController({ initialDirectory, configPath, encoding = 'utf
   let directory = path.resolve(initialDirectory);
   core.configureDataDirectory(directory);
   return {
+    privateDirectory: path.dirname(configPath),
     get: () => ({ directory }),
     set(value) {
       if (typeof value !== 'string' || !path.isAbsolute(value.trim())) throw new Error('请选择绝对路径的数据文件夹');

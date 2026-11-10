@@ -33,11 +33,13 @@ jobs:
       - name: Verify release tag
         shell: bash
         run: test "$GITHUB_REF_NAME" = "v$(node -p 'require("./package.json").version')"
-      - run: npm ci --no-audit --no-fund
+      - run: npm ci --registry=https://registry.npmjs.org --replace-registry-host=always --no-audit --no-fund
       - run: npm run check
       - run: npm test
       - name: Verify responsive Agent interactions
         run: npm run test:responsive-agent
+      - name: Verify WeChat binding and message synchronization
+        run: npm run test:wechat-ui
       - name: Verify startup task recovery
         run: npm run test:startup-recovery
       - name: Verify Windows taskbar identity

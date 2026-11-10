@@ -82,6 +82,10 @@ async function main() {
       check(document.querySelector('#settingsForm .settings-scroll'), 'Settings layout');
       check(!document.querySelector('#reminderInput') && document.querySelector('#passiveNudgesInput').value === '30', 'One nudge interval with 30 minute default');
       check(window.voiceUI && window.speechAudio && window.speechConfig, 'Bundled speech modules');
+      check(window.wechatUI && document.querySelector('#wechatSettings #wechatLoginButton'), 'Bundled WeChat settings');
+      check(document.querySelector('#wechatSettings').textContent.includes('PC 微信支持情况'), 'Bundled WeChat instructions');
+      const wechat = await window.humanDispatch.wechatStatus();
+      check(wechat.bound === false && !('token' in wechat), 'Unbound WeChat API without credentials in clean profile');
       check(window.speechAudio.LEAD_MS === 1000 && window.speechAudio.PART_LEAD_MS === 1000, 'Speech startup buffer');
       check(!state.settings.speech.enabled, 'Speech must default to disabled');
       check(document.querySelector('#speechVoice-zhixu').value === 'ICL_uranus_zh_female_lingdongxinxin_tob', 'Zhi Xu default voice');
@@ -112,6 +116,7 @@ async function main() {
     native = await debuggerClient(nativeTargets[0].webSocketDebuggerUrl);
     const mainWindow = 'process.mainModule.require("electron").BrowserWindow.getAllWindows().find(w => /index\\.html$/.test(w.webContents.getURL()))';
     assert.equal(await native.evaluate('process.mainModule.require("electron").app.getVersion()'), require('../package.json').version);
+    assert.equal(await native.evaluate('(()=>{const qr=process.mainModule.require("qrcode-generator")(0,"M");qr.addData("humancall-packaging-check");qr.make();return qr.createDataURL().startsWith("data:image/gif;base64,");})()'), true, 'Bundled offline QR encoder');
     const notifications=await require('./notifications-check.cjs')({evaluate,nativeEvaluate:native.evaluate,mainWindow});
     console.log('Packaged notifications regression passed: '+JSON.stringify(notifications));
     await native.evaluate(mainWindow + '.close(); true');

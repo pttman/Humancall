@@ -725,7 +725,7 @@ async function openSettings() {
   $('#stickerFrequencyInput').value=['lively','balanced','quiet'].includes(s.stickerFrequency)?s.stickerFrequency:'lively';
   $('#themeInput').value = themeLabels[s.theme] ? s.theme : 'pastel-mix';
   applyTheme($('#themeInput').value);
-  $('#settingsStatus').textContent = '';resetModelTest();window.voiceUI?.load(s);
+  $('#settingsStatus').textContent = '';resetModelTest();window.voiceUI?.load(s);window.wechatUI?.refresh();
   $('#settingsModal').classList.remove('hidden');
 }
 function closeSettings() { resetModelTest();$('#settingsModal').classList.add('hidden'); }

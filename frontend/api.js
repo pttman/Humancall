@@ -12,6 +12,12 @@
   window.humanDispatch = {
     ...(desktop || {}),
     getDataDirectory: () => request('storage'),
+    wechatStatus: () => request('wechat'),
+    wechatLogin: friendId => request('wechat/login', 'POST', { friendId }),
+    wechatCancelLogin: () => request('wechat/cancel', 'POST', {}),
+    wechatVerifyCode: code => request('wechat/verify', 'POST', { code }),
+    wechatConfigure: value => request('wechat', 'PUT', value),
+    wechatDisconnect: () => request('wechat/disconnect', 'POST', {}),
     setDataDirectory: directory => request('storage', 'PUT', { directory }),
     chooseDataDirectory: desktop?.chooseDataDirectory || (async () => window.prompt('输入本机数据保存文件夹的绝对路径')),
     stateBase:()=>structuredClone(stateBaseline),
