@@ -24,7 +24,7 @@ async function body(req) {
   try { return JSON.parse(Buffer.concat(chunks).toString() || '{}'); } catch { throw Object.assign(new Error('JSON 格式不正确'), { status: 400 }); }
 }
 function createServer({ serveFrontend = true, storage, onStateSaved, speechSynthesize=require('./speech.cjs').synthesize, wechatOptions = {} } = {}) {
-  const saveState=value=>{const saved=core.writeState(value);onStateSaved?.(saved);return saved;};
+  const saveState=(value,{forward=true}={})=>{const previous=core.readState();const saved=core.writeState(value);if(forward)wechat.observeState(previous,saved);onStateSaved?.(saved);return saved;};
   const checkIn = createSupervisor({readState:core.readState});
   const considerMoment = createMoments({readState:core.readState});
   const wechat = require('./wechat-service.cjs').createWechatService({ file: path.join(storage?.privateDirectory || core.dataDirectory(), 'wechat-connection.json'), readState: core.readState, saveState, ...wechatOptions });
@@ -96,7 +96,7 @@ function createServer({ serveFrontend = true, storage, onStateSaved, speechSynth
       if (route === 'PUT /api/state') { let value = validateState(await body(req));const base=value._clientBase;delete value._clientBase;if(base&&typeof base==='object'&&['tasks','reminders','projects','supervisionEvents'].every(key=>Array.isArray(base[key])&&base[key].every(item=>item&&typeof item==='object'&&typeof item.id==='string')))value=require('../frontend/state-merge.js').shared(base,value,core.readState());return send(200, saveState(value)); }
       if (route === 'GET /api/settings/prompts') return send(200, { defaultPrompt: core.DEFAULT_SYSTEM_PROMPT, tonePrompts: core.TONE_PROMPTS });
       if (route === 'GET /api/backup') { const snapshot = core.readState(); snapshot.settings = require('../frontend/model-presets.js').redact(snapshot.settings); return send(200, snapshot); }
-      if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); saveState(state); return send(200, { canceled: false, state }); }
+      if (route === 'POST /api/backup') { const value = validateState(await body(req)); const state = core.normalizeImportedState(value, core.readState()); saveState(state,{forward:false}); return send(200, { canceled: false, state }); }
       if (route === 'POST /api/ai/chat') {
         const payload=await body(req),controller=new AbortController(),cancel=()=>{if(!res.writableEnded)controller.abort();};res.once('close',cancel);
         try{return send(200,await chat(payload,{saveState,signal:controller.signal}));}finally{res.removeListener('close',cancel);}

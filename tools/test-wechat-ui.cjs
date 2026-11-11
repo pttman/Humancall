@@ -32,7 +32,7 @@ app.whenReady().then(async () => {
     const until = async predicate => { for (let i = 0; i < 250; i++) { if (await predicate()) return; await delay(40); } throw Error('微信界面测试等待超时'); };
     await until(() => evaluate('Boolean(window.wechatUI && state.settings.workStart)'));
     await evaluate('(async()=>{closeConfigReminder();await openSettings();})()');
-    assert.ok(await evaluate(`$('#wechatSettings').textContent.includes('PC 微信支持情况') && $('#wechatSettings').textContent.includes('本版不向微信主动推送定时提醒')`));
+    assert.ok(await evaluate(`$('#wechatSettings').textContent.includes('PC 微信支持情况') && $('#wechatSettings').textContent.includes('应用新增的伙伴消息和定时提醒会自动推送')`));
     const out = path.join(__dirname, '../work/wechat-previews'); fs.mkdirSync(out, { recursive: true });
     await evaluate(`$('#settingsForm .settings-scroll').scrollTo({top:$('#wechatSettings').offsetTop-$('#settingsForm .settings-scroll').offsetTop,behavior:'instant'})`); await delay(350);
     fs.writeFileSync(path.join(out, 'wechat-settings.png'), (await window.webContents.capturePage()).toPNG());
@@ -53,6 +53,9 @@ app.whenReady().then(async () => {
     assert.equal(await evaluate(`$('#chatInput').value`), '桌面尚未发送的草稿');
     assert.equal(await evaluate('state.activeFriendId'), 'zhixu');
     assert.equal(await evaluate(`state.friends.luye.messages.filter(message=>message.channel==='wechat').length`), 2);
+    await evaluate(`(async()=>{appendMessage('assistant','桌面主动提醒测试','本地提醒',null,{id:'ui-proactive',kind:'reminder'});await save();})()`);
+    await until(() => sent.some(message => message.item_list[0].text_item.text.includes('桌面主动提醒测试')));
+    assert.equal(sent.filter(message => message.item_list[0].text_item.text.includes('已记下微信测试待办')).length, 1);
     await evaluate(`(async()=>{await window.friendsUI.select('luye');await openSettings();$('#wechatSettings').scrollIntoView({block:'start'});})()`);
     await evaluate(`$('#wechatToggleButton').click()`);
     await until(() => evaluate(`$('#wechatConnectionBadge').textContent==='已暂停'`));

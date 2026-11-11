@@ -149,3 +149,84 @@ test('本机 HTTP 接入入口、来源限制、状态/备份凭证隔离和解�
   assert.equal((await fetch(base + '/api/wechat/disconnect', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })).status, 200);
   assert.equal(fs.existsSync(file), false);
 });
+
+test('应用输出不被接收长轮询阻塞，转发所有伙伴的回复、提醒、瞬笺和表情，不回传微信回复', async t => {
+  const file = makeFile(); store(file, { ...connection(), contextToken: 'saved-context' });
+  const sent = []; let polling = false;
+  const service = createWechatService({ file, readState: fixture, saveState: () => {}, wait,
+    client: clientFor({ updates: async (account, signal) => { polling = true; return parked(signal); },
+      send: async (account, message) => sent.push(message) }) });
+  t.after(() => service.stop()); service.start(); await until(() => polling);
+  const before = fixture(); before.messages.push({ id: 'history', role: 'assistant', content: '历史内容' }); friends.normalize(before);
+  const saved = structuredClone(before);
+  saved.messages.push({ id: 'reply', role: 'assistant', content: '桌面新回复' },
+    { id: 'reminder', role: 'assistant', kind: 'reminder', content: '该整理报告了' },
+    { id: 'moment', role: 'assistant', kind: 'moment', content: '今日瞬笺' },
+    { id: 'sticker', role: 'assistant', kind: 'sticker', content: '', sticker: { id: 'cheer' } },
+    { id: 'remote-reply', role: 'assistant', channel: 'wechat', content: '微信已回复' },
+    { id: 'user', role: 'user', content: '用户输入' });
+  saved.friends.luye.messages.push({ id: 'other', role: 'assistant', content: '另一个伙伴主动发言' });
+  service.observeState(before, saved); service.observeState(before, saved);
+  await until(() => sent.length === 5);
+  const text = sent.map(message => message.item_list[0].text_item.text).join('\n');
+  for (const expected of ['桌面新回复', '该整理报告了', '瞬笺\n今日瞬笺', '[表情：cheer]', '【枫言】\n另一个伙伴主动发言']) assert.ok(text.includes(expected));
+  for (const excluded of ['历史内容', '微信已回复', '用户输入']) assert.ok(!text.includes(excluded));
+  assert.ok(sent.every(message => message.to_user_id === 'owner' && message.context_token === 'saved-context'));
+  assert.equal(service.status().pendingOutputs, 0);
+  assert.ok(!JSON.stringify(service.status()).includes('saved-context'));
+  await service.configure({ enabled: false, friendId: 'luye' });
+  const paused = structuredClone(saved); paused.messages.push({ id: 'paused', role: 'assistant', content: '暂停期间' });
+  service.observeState(saved, paused);
+  await service.configure({ enabled: true, friendId: 'luye' }); await delay(30); assert.equal(sent.length, 5);
+});
+
+test('应用输出等待首次会话，接收新上下文后自动发送；上下文与分段重试可跨重启恢复', async t => {
+  const file = makeFile(); store(file, connection());
+  let incoming; const sent = [];
+  const client = clientFor({ updates: async (account, signal) => incoming ? { msgs: [incoming], get_updates_buf: 'new' } : parked(signal),
+    send: async (account, message) => sent.push(message) });
+  const service = createWechatService({ file, readState: fixture, saveState: () => {}, client, wait, receive: async () => '微信回复' });
+  t.after(() => service.stop());
+  const before = fixture(), saved = structuredClone(before);
+  saved.messages.push({ id: 'early-output', role: 'assistant', content: '等待建立会话的输出' });
+  service.observeState(before, saved); service.start(); await delay(30);
+  assert.equal(sent.length, 0); assert.equal(service.status().outputReady, false); assert.equal(service.status().pendingOutputs, 1);
+  await service.stop();
+  incoming = { message_id: 'context', from_user_id: 'owner', message_type: 1, context_token: 'latest-context', item_list: [{ type: 1, text_item: { text: '建立会话' } }] };
+  service.start(); await until(() => sent.length === 2); await service.stop();
+  assert.ok(sent.every(message => message.context_token === 'latest-context'));
+  assert.equal(JSON.parse(fs.readFileSync(file)).contextToken, 'latest-context');
+
+  let attempts = 0; const ids = [];
+  const failed = createWechatService({ file, readState: fixture, saveState: () => {}, wait,
+    client: clientFor({ send: async (account, message) => { ids.push(message.client_id); if (++attempts > 1) throw Error('offline'); } }) });
+  t.after(() => failed.stop());
+  const long = structuredClone(saved); long.messages.push({ id: 'long-output', role: 'assistant', content: '长'.repeat(3100) });
+  failed.observeState(saved, long); failed.start(); await until(() => attempts >= 2); await failed.stop();
+  const disk = JSON.parse(fs.readFileSync(file));
+  assert.equal(disk.outbox.at(-1).part, 1); assert.equal(disk.outbox.at(-1).parts.length, 3);
+  const retried = [];
+  const restored = createWechatService({ file, readState: fixture, saveState: () => {}, wait,
+    client: clientFor({ send: async (account, message) => { assert.equal(message.context_token, 'latest-context'); retried.push(message); } }) });
+  t.after(() => restored.stop()); restored.start(); await until(() => retried.length === 2); await restored.stop();
+  assert.equal(retried[0].client_id, ids[1]); assert.ok(!retried.some(message => message.client_id === ids[0]));
+  assert.equal(restored.status().pendingOutputs, 0);
+});
+
+test('HTTP 状态保存触发应用推送，导入备份不推送历史且不会重复转发', async t => {
+  const file = makeFile(); store(file, { ...connection(), contextToken: 'http-context' });
+  const sent = [];
+  const server = createServer({ wechatOptions: { file, wait, client: clientFor({ send: async (account, message) => sent.push(message) }) } });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  t.after(async () => { await server.wechat.stop(); await new Promise(resolve => server.close(resolve)); });
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const state = await (await fetch(base + '/api/state')).json();
+  state.messages.push({ id: 'http-output', role: 'assistant', kind: 'reminder', content: 'HTTP 定时提醒' });
+  const save = value => fetch(base + '/api/state', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) });
+  assert.equal((await save(state)).status, 200); await until(() => sent.length === 1);
+  await save(state); await delay(30); assert.equal(sent.length, 1);
+  state.messages.push({ id: 'imported-output', role: 'assistant', content: '备份里的历史' });
+  assert.equal((await fetch(base + '/api/backup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(state) })).status, 200);
+  await delay(30); assert.equal(sent.length, 1);
+  assert.ok(!(await (await fetch(base + '/api/backup')).text()).includes('http-context'));
+});

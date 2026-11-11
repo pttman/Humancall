@@ -3,16 +3,16 @@
   section.id = 'wechatSettings'; section.className = 'settings-section wechat-connect';
   section.innerHTML = `<div class="wechat-connect-heading"><div><div class="settings-section-title">微信接入</div><p class="settings-section-copy">在手机微信里记待办、查任务，接着和伙伴聊。</p></div><span id="wechatConnectionBadge" class="wechat-connection-badge">未绑定</span></div>
     <label>微信里的对话伙伴<select id="wechatFriendInput"><option value="zhixu">知序</option><option value="luye">枫言</option></select></label>
-    <p class="settings-section-copy">微信与所选伙伴共用聊天记录、人物资料、任务和模型配置。切换桌面伙伴不会改变微信的选择；这里的连接操作立即生效。</p>
-    <div class="wechat-connect-actions"><button type="button" id="wechatLoginButton" class="secondary">扫码绑定微信</button><button type="button" id="wechatCancelButton" class="secondary" hidden>取消绑定</button><button type="button" id="wechatToggleButton" class="secondary" hidden>暂停接收</button><button type="button" id="wechatDisconnectButton" class="text-button" hidden>解除绑定</button></div>
-    <div id="wechatDisconnectConfirm" class="wechat-inline-confirm" hidden><p>解除后停止接收微信消息，并清除本机微信凭证与待发送回复。任务和聊天记录保留。手机 ClawBot 中的连接可再手动解除。</p><button type="button" id="wechatConfirmDisconnect" class="secondary">确认解除绑定</button><button type="button" id="wechatKeepConnection" class="text-button">保留连接</button></div>
+    <p class="settings-section-copy">微信发来的消息由所选伙伴回复。应用中所有伙伴的新回复、提醒、主动消息和瞬笺都会自动同步到 ClawBot；表情以文字说明同步。这里的连接操作立即生效。</p>
+    <div class="wechat-connect-actions"><button type="button" id="wechatLoginButton" class="secondary">扫码绑定微信</button><button type="button" id="wechatCancelButton" class="secondary" hidden>取消绑定</button><button type="button" id="wechatToggleButton" class="secondary" hidden>暂停连接</button><button type="button" id="wechatDisconnectButton" class="text-button" hidden>解除绑定</button></div>
+    <div id="wechatDisconnectConfirm" class="wechat-inline-confirm" hidden><p>解除后停止微信收发，并清除本机微信凭证与待发送内容。任务和聊天记录保留。手机 ClawBot 中的连接可再手动解除。</p><button type="button" id="wechatConfirmDisconnect" class="secondary">确认解除绑定</button><button type="button" id="wechatKeepConnection" class="text-button">保留连接</button></div>
     <div id="wechatQrPanel" class="wechat-qr-panel" hidden><img id="wechatQrImage" alt="用手机微信扫描此二维码绑定人类调度" width="240" height="240" /><p>用手机微信扫一扫，并按手机提示确认授权。二维码过期后可重新获取。</p></div>
     <div id="wechatCodePanel" class="wechat-code-panel" hidden><label>手机显示的验证码<input id="wechatVerifyCodeInput" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="输入手机显示的数字" /></label><button type="button" id="wechatVerifyButton" class="secondary">提交验证码</button></div>
     <p id="wechatConnectionStatus" class="form-status" role="status" aria-live="polite"></p>
     <details class="wechat-help" open><summary>接入说明与使用范围</summary><ol><li>在手机微信的「我 → 设置 → 插件」中开启 ClawBot；如没有入口，请更新微信并确认账号已开放此功能。</li><li>在上方选择伙伴，点击「扫码绑定微信」，用手机微信扫描本产品显示的二维码并确认授权。</li><li>显示「已连接」后，在手机 ClawBot 会话里发送文字，例如「帮我记下明天下午整理报告」。先发一句话验证回复，再查看桌面的任务和聊天记录。</li></ol>
     <p>电脑需要开机、联网，人类调度需要持续运行。无需公网 IP、域名或内网穿透；手机与电脑可以使用不同网络。退出或休眠期间无法实时处理消息，恢复运行后继续接收。</p>
     <p><strong>PC 微信支持情况：</strong>扫码在手机完成；PC 微信能否显示并使用 ClawBot 会话，取决于微信客户端支持，需实际验证。电脑上可继续使用人类调度自己的聊天窗口。</p>
-    <p>本版接入支持文字对话和微信已转写的语音；图片、文件、视频、群聊暂不处理。删除和清空任务请在桌面窗口操作。本版不向微信主动推送定时提醒，提醒仍在桌面显示。</p>
+    <p>接入支持文字对话和微信已转写的语音；图片、文件、视频、群聊暂不处理。删除和清空任务请在桌面窗口操作。应用新增的伙伴消息和定时提醒会自动推送，无需每次先发消息。首次绑定或升级后，请先在 ClawBot 发送一句话建立推送会话；若微信提示会话过期，再发送一句话刷新。暂停连接期间不采集新输出，已有待发送内容会在恢复后继续发送；历史记录和导入备份不会补发。</p>
     <p>只处理扫码绑定者发来的私聊消息。消息经微信服务传输，AI 回复使用本产品已保存的模型配置；微信登录凭证仅保存在本机，不随备份导出。请先保存模型设置，再开始聊天。</p>
     <p>连接中断时会自动重试；凭证失效时重新扫码。解除绑定后如仍提示已有连接，请先到手机 ClawBot 解除旧连接，再回来绑定。</p>
     <button type="button" id="wechatProtocolLink" class="text-button">查看腾讯通道说明 ↗</button></details>`;
@@ -31,7 +31,7 @@
     $('#wechatLoginButton').textContent = ['expired', 'error'].includes(value.phase) ? '重新扫码绑定' : '扫码绑定微信';
     $('#wechatCancelButton').hidden = !loggingIn;
     $('#wechatToggleButton').hidden = !value.bound;
-    $('#wechatToggleButton').textContent = value.enabled ? '暂停接收' : '启用接收';
+    $('#wechatToggleButton').textContent = value.enabled ? '暂停连接' : '启用连接';
     $('#wechatDisconnectButton').hidden = !value.bound;
     $('#wechatFriendInput').disabled = busy || loggingIn;
     for (const button of section.querySelectorAll('button:not(#wechatProtocolLink):not(#wechatKeepConnection)')) button.disabled = busy;
@@ -47,7 +47,9 @@
     if (value.error) notes.push(value.error);
     if (value.interrupted) notes.push(value.interrupted + ' 条消息执行中断，未自动重复执行。请先查看桌面任务与聊天，再从微信重新发送。');
     if (value.pendingReplies) notes.push(value.pendingReplies + ' 条回复等待发送。');
-    if (!notes.length) notes.push(value.phase === 'connected' ? '可以在手机微信的 ClawBot 会话里发消息了。' : loggingIn ? '请按手机提示完成绑定。' : value.bound ? '连接凭证已保存在本机，可启用接收。' : value.phase === 'expired' ? '二维码已过期，请重新扫码绑定。' : '首次使用请先阅读下方说明，再扫码绑定。');
+    if (value.pendingOutputs) notes.push(value.pendingOutputs + ' 条应用消息等待同步。');
+    if (value.bound && value.enabled) notes.push(value.outputReady ? '已开启应用输出同步。' : '请先在手机 ClawBot 中发送一句话，建立应用消息推送会话。');
+    if (!notes.length) notes.push(value.phase === 'connected' ? '可以在手机微信的 ClawBot 会话里发消息了。' : loggingIn ? '请按手机提示完成绑定。' : value.bound ? '连接凭证已保存在本机，可启用连接。' : value.phase === 'expired' ? '二维码已过期，请重新扫码绑定。' : '首次使用请先阅读下方说明，再扫码绑定。');
     $('#wechatConnectionStatus').textContent = notes.join(' ');
     for (const option of $('#wechatFriendInput').options) option.textContent = window.friends.identity(state, option.value).assistantName;
   }

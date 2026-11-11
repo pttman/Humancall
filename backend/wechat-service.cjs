@@ -3,7 +3,7 @@ const path = require('node:path');
 const { randomUUID, createHash } = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 const { createWechatClient, trustedBase, BASE_URL } = require('./wechat-client.cjs');
-const { receiveWechatText } = require('./wechat-conversation.cjs');
+const { receiveWechatText, messagesFor } = require('./wechat-conversation.cjs');
 const friends = require('../frontend/friends.js');
 
 function createWechatService({ file, readState, saveState, client = createWechatClient(), receive = receiveWechatText,
@@ -11,13 +11,15 @@ function createWechatService({ file, readState, saveState, client = createWechat
     const qr = require('qrcode-generator')(0, 'M'); qr.addData(content, 'Byte'); qr.make(); return qr.createDataURL(5, 20);
   } }) {
   let account = null, login = null, loginController, workerController, workerPromise, workerState = 'disconnected';
-  let lastError = '', lastMessageAt = '', loadError = false, loginPending = false;
+  let lastError = '', outputError = '', lastMessageAt = '', loadError = false, loginPending = false;
   try {
     if (fs.existsSync(file)) {
       account = JSON.parse(fs.readFileSync(file, 'utf8'));
       if (!account || typeof account.token !== 'string' || !account.token || typeof account.userId !== 'string' || !account.userId ||
           typeof account.botId !== 'string' || !account.botId || !friends.ids.includes(account.friendId) || !Array.isArray(account.inbox)) throw Error('invalid connection');
       account.baseUrl = trustedBase(account.baseUrl);
+      account.outbox = Array.isArray(account.outbox) ? account.outbox : [];
+      account.contextToken ||= [...account.inbox].reverse().find(item => item.contextToken)?.contextToken || '';
       for (const item of account.inbox) if (item.stage === 'processing') item.stage = 'interrupted';
     }
   } catch { account = null; loadError = true; lastError = '本机微信连接文件无法读取，请重新扫码绑定。'; }
@@ -30,11 +32,34 @@ function createWechatService({ file, readState, saveState, client = createWechat
   }
   function status() {
     return { bound: Boolean(account), enabled: Boolean(account?.enabled), friendId: account?.friendId || login?.friendId || 'zhixu',
-      phase: login?.phase || (loadError ? 'error' : workerState), error: login?.error || lastError,
+      phase: login?.phase || (loadError ? 'error' : workerState), error: login?.error || outputError || lastError,
       qrImage: login?.qrImage || '', expiresAt: login?.expiresAt || '', lastMessageAt,
       interrupted: account?.inbox.filter(item => item.stage === 'interrupted').length || 0,
       pendingReplies: account?.inbox.filter(item => item.stage === 'replying').length || 0,
+      pendingOutputs: account?.outbox.filter(item => item.stage === 'replying').length || 0,
+      outputReady: Boolean(account?.contextToken),
       needsVerifyCode: Boolean(login?.phase === 'verify_code') };
+  }
+  // Observe committed messages from every companion, including reminders and moments.
+  // WeChat replies already have their own durable delivery entry in the inbox.
+  function observeState(previous, saved) {
+    if (!account?.enabled) return;
+    const known = new Set(account.outbox.map(item => item.id));
+    let changed = false;
+    for (const friendId of friends.ids) {
+      const before = new Set(messagesFor(previous, friendId).map(message => message.id));
+      for (const message of messagesFor(saved, friendId)) {
+        const id = friendId + ':' + message.id;
+        if (!message.id || before.has(message.id) || known.has(id) || message.role !== 'assistant' || message.channel === 'wechat') continue;
+        const content = message.kind === 'sticker' ? '[表情：' + (message.sticker?.label || message.sticker?.id || '表情包') + ']' : String(message.content || '').trim();
+        if (!content) continue;
+        const text = '【' + friends.identity(saved, friendId).assistantName + '】' + (message.kind === 'moment' ? '瞬笺\n' : '\n') + content;
+        account.outbox.push({ id, stage: 'replying', replyId: 'hc_' + randomUUID(), part: 0,
+          parts: text.match(/[\s\S]{1,1500}/gu) });
+        known.add(id); changed = true;
+      }
+    }
+    if (changed) persist();
   }
   async function stopWorker() {
     workerController?.abort();
@@ -47,23 +72,47 @@ function createWechatService({ file, readState, saveState, client = createWechat
     const active = account;
     const controller = new AbortController(); workerController = controller;
     workerState = 'connecting';
-    workerPromise = monitor(active, controller.signal).catch(() => {
+    workerPromise = Promise.all([monitor(active, controller.signal), monitorOutputs(active, controller.signal)]).catch(() => {
       if (!controller.signal.aborted) { workerState = 'error'; lastError = '微信连接已停止，请暂停后重新启用，或重新扫码绑定。'; }
+      controller.abort();
     });
   }
-  async function deliver(active, item, signal) {
+  async function deliver(active, item, signal, queue = 'inbox') {
     while (item.part < item.parts.length) {
       signal.throwIfAborted();
       await client.send(active, { from_user_id: '', to_user_id: active.userId, client_id: item.replyId + '_' + item.part,
-        message_type: 2, message_state: 2, context_token: item.contextToken,
+        message_type: 2, message_state: 2, context_token: item.contextToken || active.contextToken,
         item_list: [{ type: 1, text_item: { text: item.parts[item.part] } }] }, signal);
       signal.throwIfAborted();
       // Keep a stable client_id if a send succeeds just before an interrupted write.
       item.part++; persist();
     }
     item.stage = 'done'; delete item.parts; delete item.text; delete item.contextToken;
-    active.inbox = active.inbox.filter(row => row.stage !== 'done').concat(active.inbox.filter(row => row.stage === 'done').slice(-1000));
+    active[queue] = active[queue].filter(row => row.stage !== 'done').concat(active[queue].filter(row => row.stage === 'done').slice(-1000));
     persist();
+  }
+  async function monitorOutputs(active, signal) {
+    let failures = 0;
+    while (!signal.aborted && active.enabled) {
+      try {
+        if (active.contextToken) {
+          for (const item of [...active.outbox]) {
+            if (item.stage !== 'replying') continue;
+            await deliver(active, item, signal, 'outbox');
+          }
+        }
+        failures = 0; outputError = '';
+        await wait(500, signal);
+      } catch (error) {
+        if (signal.aborted) return;
+        if (error.code === -14 || [401, 403].includes(error.code)) {
+          active.enabled = false; persist(); workerState = 'expired'; outputError = '微信登录已失效，请先解除绑定，再重新扫码。';
+          workerController?.abort(); return;
+        }
+        outputError = '应用消息暂未同步到微信，正在重试。若会话已过期，请在 ClawBot 中发送一句话刷新会话。';
+        try { await wait(Math.min(30000, 2000 * 2 ** Math.min(failures++, 4)), signal); } catch { return; }
+      }
+    }
   }
   async function processInbox(active, signal) {
     for (const item of [...active.inbox]) {
@@ -98,6 +147,7 @@ function createWechatService({ file, readState, saveState, client = createWechat
         const known = new Set(active.inbox.map(item => item.id));
         for (const message of updates.msgs || []) {
           if (message.message_type !== 1 || message.from_user_id !== active.userId || message.group_id || !message.context_token) continue;
+          active.contextToken = message.context_token;
           const id = String(message.message_id || message.client_id || createHash('sha256').update(JSON.stringify(message)).digest('hex'));
           if (known.has(id)) continue;
           const items = Array.isArray(message.item_list) ? message.item_list : [];
@@ -149,7 +199,7 @@ function createWechatService({ file, readState, saveState, client = createWechat
         if (data.status === 'confirmed') {
           if (![data.bot_token, data.ilink_bot_id, data.ilink_user_id, data.baseurl].every(value => typeof value === 'string' && value)) throw Error('微信未返回完整的绑定信息，请重新扫码');
           account = { token: data.bot_token, botId: data.ilink_bot_id, userId: data.ilink_user_id, baseUrl: trustedBase(data.baseurl),
-            friendId: session.friendId, enabled: true, cursor: '', inbox: [] };
+            friendId: session.friendId, enabled: true, cursor: '', inbox: [], outbox: [], contextToken: '' };
           persist(); login = null; loadError = false; lastError = ''; start(); return;
         }
         if (data.status === 'expired') { session.phase = 'expired'; session.qrImage = ''; return; }
@@ -171,18 +221,18 @@ function createWechatService({ file, readState, saveState, client = createWechat
   async function configure({ enabled, friendId }) {
     if (!account) throw Object.assign(Error('请先扫码绑定微信'), { status: 400 });
     if (typeof enabled !== 'boolean' || !friends.ids.includes(friendId)) throw Object.assign(Error('微信连接配置无效'), { status: 400 });
-    await stopWorker(); account.enabled = enabled; account.friendId = friendId; persist(); lastError = ''; start(); return status();
+    await stopWorker(); account.enabled = enabled; account.friendId = friendId; persist(); lastError = ''; outputError = ''; start(); return status();
   }
   async function disconnect() {
     await cancelLogin(); await stopWorker();
     if (fs.existsSync(file)) fs.unlinkSync(file);
-    account = null; loadError = false; lastError = ''; workerState = 'disconnected'; return status();
+    account = null; loadError = false; lastError = ''; outputError = ''; workerState = 'disconnected'; return status();
   }
   function verifyCode(code) {
     if (!login || login.phase !== 'verify_code' || !/^\d{4,12}$/.test(String(code))) throw Object.assign(Error('请输入手机显示的 4–12 位数字验证码'), { status: 400 });
     login.verifyCode = String(code); login.phase = 'scanned'; return status();
   }
   async function stop() { await cancelLogin(); await stopWorker(); }
-  return { status, start, stop, beginLogin, cancelLogin, verifyCode, configure, disconnect };
+  return { status, start, stop, beginLogin, cancelLogin, verifyCode, configure, disconnect, observeState };
 }
 module.exports = { createWechatService };
